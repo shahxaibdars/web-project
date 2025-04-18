@@ -1,0 +1,18 @@
+{
+  "name": "finwise",
+  "version": "1.0.0",
+  "description": "",
+  "main": "app.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+   
+  },
+  "keywords": [],
+  "author": "Shahzaib",
+  "license": "ISC",
+  "dependencies": {
+    "express": "^4.21.2",
+    "mongoose": "^8.12.1",
+    "passport-local-mongoose": "^8.0.0"
+  }
+}
