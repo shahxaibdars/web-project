@@ -16,8 +16,8 @@ export function RecentTransactions() {
       const user = getCurrentUser()
       if (user) {
         try {
-          const data = await getTransactions(user.id)
-          setTransactions(data.slice(0, 5)) // Get only the 5 most recent
+          const { transactions: data } = await getTransactions(user._id, 1, 5)
+          setTransactions(data)
         } catch (error) {
           console.error("Error fetching transactions:", error)
         } finally {
@@ -44,7 +44,7 @@ export function RecentTransactions() {
         {transactions.length > 0 ? (
           transactions.map((transaction) => (
             <div
-              key={transaction.id}
+              key={transaction._id}
               className="flex items-center justify-between py-2 border-b border-emerald/10 last:border-0"
             >
               <div className="flex items-center">

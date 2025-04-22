@@ -36,7 +36,7 @@ export function BillList({ refreshTrigger = 0 }: BillListProps) {
     const user = getCurrentUser()
     if (user) {
       try {
-        const data = await getBills(user.id)
+        const data = await getBills(user._id)
         setBills(data)
       } catch (error) {
         console.error("Error fetching bills:", error)
@@ -57,39 +57,41 @@ export function BillList({ refreshTrigger = 0 }: BillListProps) {
     if (!user) return
 
     try {
-      await deleteBill(user.id, billToDelete)
-      setBills((prev) => prev.filter((b) => b.id !== billToDelete))
+      await deleteBill(user._id, billToDelete)
+      setBills((prev) => prev.filter((b) => b._id !== billToDelete))
       setBillToDelete(null)
     } catch (error) {
       console.error("Error deleting bill:", error)
     }
   }
 
-  const getBillStatusClass = (dueDate: Date) => {
-    const daysUntil = getDaysUntil(dueDate)
+  const getBillStatusClass = (dueDate: string | Date) => {
+    const date = new Date(dueDate);
+    const daysUntil = getDaysUntil(date);
 
     if (daysUntil <= 0) {
-      return "bg-destructive text-destructive-foreground"
+      return "bg-destructive text-destructive-foreground";
     } else if (daysUntil <= 3) {
-      return "bg-amber-500 text-amber-950"
+      return "bg-amber-500 text-amber-950";
     } else {
-      return "bg-emerald text-emerald-950"
+      return "bg-emerald text-emerald-950";
     }
-  }
+  };
 
-  const getBillStatusText = (dueDate: Date) => {
-    const daysUntil = getDaysUntil(dueDate)
+  const getBillStatusText = (dueDate: string | Date) => {
+    const date = new Date(dueDate);
+    const daysUntil = getDaysUntil(date);
 
     if (daysUntil < 0) {
-      return `Overdue by ${Math.abs(daysUntil)} days`
+      return `Overdue by ${Math.abs(daysUntil)} days`;
     } else if (daysUntil === 0) {
-      return "Due today"
+      return "Due today";
     } else if (daysUntil === 1) {
-      return "Due tomorrow"
+      return "Due tomorrow";
     } else {
-      return `Due in ${daysUntil} days`
+      return `Due in ${daysUntil} days`;
     }
-  }
+  };
 
   if (isLoading) {
     return (
@@ -104,7 +106,7 @@ export function BillList({ refreshTrigger = 0 }: BillListProps) {
       <div className="grid grid-dashboard">
         {bills.length > 0 ? (
           bills.map((bill) => (
-            <Card key={bill.id} className="glass-card border-emerald/20">
+            <Card key={bill._id} className="glass-card border-emerald/20">
               <CardHeader className="pb-2">
                 <div className="flex justify-between items-start">
                   <div>
@@ -133,7 +135,7 @@ export function BillList({ refreshTrigger = 0 }: BillListProps) {
                 <BillForm existingBill={bill} onSuccess={fetchBills} />
                 <AlertDialog>
                   <AlertDialogTrigger asChild>
-                    <Button variant="destructive" size="sm" onClick={() => setBillToDelete(bill.id)}>
+                    <Button variant="destructive" size="sm" onClick={() => setBillToDelete(bill._id)}>
                       Delete
                     </Button>
                   </AlertDialogTrigger>

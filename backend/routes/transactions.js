@@ -2,57 +2,219 @@
 const express = require('express');
 const router = express.Router();
 const Transaction = require('../models/Transaction');
+const auth = require('../middleware/auth');
+const Budget = require('../models/Budget');
 
-// Get all transactions
-router.get('/', async (req, res) => {
+// Get all transactions for the authenticated user
+router.get('/', auth, async (req, res) => {
   try {
-    const transactions = await Transaction.find().populate('user', 'name email');
-    res.json(transactions);
+    const { type, category, startDate, endDate, month, year, page = 1, limit = 10 } = req.query;
+    
+    const query = { user: req.user._id };
+    
+    if (type) query.type = type;
+    if (category) query.category = category;
+    
+    // Handle month and year filtering
+    if (month !== undefined && year !== undefined) {
+      // Create start and end dates for the specified month
+      const startOfMonth = new Date(parseInt(year), parseInt(month), 1, 0, 0, 0, 0);
+      const endOfMonth = new Date(parseInt(year), parseInt(month) + 1, 0, 23, 59, 59, 999);
+      
+      query.date = {
+        $gte: startOfMonth,
+        $lte: endOfMonth
+      };
+    } else if (startDate || endDate) {
+      query.date = {};
+      if (startDate) query.date.$gte = new Date(startDate);
+      if (endDate) query.date.$lte = new Date(endDate);
+    }
+
+    const transactions = await Transaction.find(query)
+      .sort({ date: -1 })
+      .skip((page - 1) * limit)
+      .limit(limit);
+
+    const total = await Transaction.countDocuments(query);
+
+    res.json({
+      transactions,
+      totalPages: Math.ceil(total / limit),
+      currentPage: page
+    });
   } catch (err) {
+    console.error('Error in GET /transactions:', err);
     res.status(500).json({ message: err.message });
   }
 });
 
-// Get transaction by id
-router.get('/:id', async (req, res) => {
+// Get a single transaction
+router.get('/:id', auth, async (req, res) => {
   try {
-    const transaction = await Transaction.findById(req.params.id).populate('user', 'name email');
-    if (!transaction) return res.status(404).json({ message: 'Transaction not found.' });
+    const transaction = await Transaction.findOne({
+      _id: req.params.id,
+      user: req.user._id
+    });
+
+    if (!transaction) {
+      return res.status(404).json({ message: 'Transaction not found' });
+    }
+
     res.json(transaction);
   } catch (err) {
     res.status(500).json({ message: err.message });
   }
 });
 
-// Create transaction
-router.post('/', async (req, res) => {
-  const { user, amount, category, description, type } = req.body;
-  const transaction = new Transaction({ user, amount, category, description, type });
+// Helper function to update budget
+async function updateBudget(transaction, isDelete = false) {
+  const transactionDate = new Date(transaction.date);
+  const budget = await Budget.findOne({
+    user: transaction.user,
+    month: transactionDate.getMonth(),
+    year: transactionDate.getFullYear()
+  });
+
+  if (budget) {
+    const categoryIndex = budget.categories.findIndex(c => c.category === transaction.category);
+    
+    if (categoryIndex !== -1) {
+      if (transaction.type === 'expense') {
+        // For expenses, decrease budget when adding, increase when deleting
+        budget.categories[categoryIndex].spent += isDelete ? -transaction.amount : transaction.amount;
+      } else if (transaction.type === 'income') {
+        // For income, increase budget when adding, decrease when deleting
+        budget.categories[categoryIndex].limit += isDelete ? -transaction.amount : transaction.amount;
+      }
+      await budget.save();
+    }
+  }
+}
+
+// Create a new transaction
+router.post('/', auth, async (req, res) => {
   try {
-    const saved = await transaction.save();
-    res.status(201).json({ message: 'Transaction created.', transaction: saved });
+    const { user, type, amount, category, description, date } = req.body;
+    if (!user || !type || !amount || !category) {
+      return res.status(400).json({ message: 'Missing required fields' });
+    }
+
+    const transaction = new Transaction({
+      user,
+      type,
+      amount,
+      category,
+      description,
+      date: date || new Date()
+    });
+
+    const savedTransaction = await transaction.save();
+    
+    // Update budget after saving transaction
+    await updateBudget(savedTransaction);
+
+    res.status(201).json(savedTransaction);
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+});
+
+// Update a transaction
+router.put('/:id', auth, async (req, res) => {
+  const updates = Object.keys(req.body);
+  const allowedUpdates = ['type', 'amount', 'category', 'description', 'date', 'status', 'tags', 'attachments'];
+  const isValidOperation = updates.every(update => allowedUpdates.includes(update));
+
+  if (!isValidOperation) {
+    return res.status(400).json({ message: 'Invalid updates' });
+  }
+
+  try {
+    const transaction = await Transaction.findOne({
+      _id: req.params.id,
+      user: req.user._id
+    });
+
+    if (!transaction) {
+      return res.status(404).json({ message: 'Transaction not found' });
+    }
+
+    // Store old values for budget update
+    const oldTransaction = { ...transaction.toObject() };
+
+    // Update transaction
+    updates.forEach(update => transaction[update] = req.body[update]);
+    await transaction.save();
+
+    // Update budgets for both old and new transaction
+    await updateBudget(oldTransaction, true); // Remove old transaction's impact
+    await updateBudget(transaction); // Add new transaction's impact
+
+    res.json(transaction);
   } catch (err) {
     res.status(400).json({ message: err.message });
   }
 });
 
-// Update transaction
-router.put('/:id', async (req, res) => {
+// Delete a transaction
+router.delete('/:id', auth, async (req, res) => {
   try {
-    const updated = await Transaction.findByIdAndUpdate(req.params.id, req.body, { new: true });
-    if (!updated) return res.status(404).json({ message: 'Transaction not found.' });
-    res.json({ message: 'Transaction updated.', transaction: updated });
+    const transaction = await Transaction.findOne({
+      _id: req.params.id,
+      user: req.user._id
+    });
+
+    if (!transaction) {
+      return res.status(404).json({ message: 'Transaction not found' });
+    }
+
+    // Update budget before deleting
+    await updateBudget(transaction, true);
+
+    await Transaction.findOneAndDelete({
+      _id: req.params.id,
+      user: req.user._id
+    });
+
+    res.json({ message: 'Transaction deleted successfully' });
   } catch (err) {
     res.status(500).json({ message: err.message });
   }
 });
 
-// Delete transaction
-router.delete('/:id', async (req, res) => {
+// Get transaction summary
+router.get('/summary/overview', auth, async (req, res) => {
   try {
-    const removed = await Transaction.findByIdAndDelete(req.params.id);
-    if (!removed) return res.status(404).json({ message: 'Transaction not found.' });
-    res.json({ message: 'Transaction deleted.' });
+    const { startDate, endDate, month, year } = req.query;
+    
+    const matchQuery = { user: req.user._id };
+    
+    if (month !== undefined && year !== undefined) {
+      const startOfMonth = new Date(year, month, 1);
+      const endOfMonth = new Date(year, month + 1, 0);
+      matchQuery.date = {
+        $gte: startOfMonth,
+        $lte: endOfMonth
+      };
+    } else if (startDate || endDate) {
+      matchQuery.date = {};
+      if (startDate) matchQuery.date.$gte = new Date(startDate);
+      if (endDate) matchQuery.date.$lte = new Date(endDate);
+    }
+
+    const summary = await Transaction.aggregate([
+      { $match: matchQuery },
+      {
+        $group: {
+          _id: '$type',
+          total: { $sum: '$amount' },
+          count: { $sum: 1 }
+        }
+      }
+    ]);
+
+    res.json(summary);
   } catch (err) {
     res.status(500).json({ message: err.message });
   }

@@ -1,88 +1,25 @@
 import type { Budget, BudgetCategory } from "../types"
 import { categories } from "./transactionService"
 
-// Generate dummy budget
-const generateDummyBudget = (userId: string): Budget => {
-  const currentDate = new Date()
-  const month = currentDate.getMonth()
-  const year = currentDate.getFullYear()
-
-  const budgetCategories: BudgetCategory[] = categories
-    .filter((cat) => cat !== "Income" && cat !== "Investments")
-    .map((category) => ({
-      category,
-      limit: Math.floor(Math.random() * 1000) + 200,
-      spent: Math.floor(Math.random() * 800),
-    }))
-
-  return {
-    id: `budget-${userId}-${month}-${year}`,
-    userId,
-    month,
-    year,
-    categories: budgetCategories,
-  }
-}
-
-// Dummy budgets store
-const dummyBudgets: Record<string, Budget> = {}
-
 // Get budget for a user
 export const getBudget = async (userId: string, month?: number, year?: number): Promise<Budget> => {
-  return new Promise((resolve) => {
-    setTimeout(() => {
-      const currentDate = new Date()
-      const targetMonth = month !== undefined ? month : currentDate.getMonth()
-      const targetYear = year !== undefined ? year : currentDate.getFullYear()
+  const token = localStorage.getItem('token');
+  if (!token) {
+    throw new Error('No authentication token found');
+  }
 
-      const budgetKey = `${userId}-${targetMonth}-${targetYear}`
+  const response = await fetch(`/api/budgets?userId=${userId}&month=${month}&year=${year}`, {
+    headers: {
+      'Authorization': `Bearer ${token}`,
+    },
+  });
 
-      if (!dummyBudgets[budgetKey]) {
-        const newBudget = generateDummyBudget(userId)
-        newBudget.month = targetMonth
-        newBudget.year = targetYear
-        dummyBudgets[budgetKey] = newBudget
-      }
+  if (!response.ok) {
+    throw new Error('Failed to fetch budget');
+  }
 
-      resolve(dummyBudgets[budgetKey])
-    }, 500)
-  })
-}
-
-// Update budget category
-export const updateBudgetCategory = async (
-  userId: string,
-  month: number,
-  year: number,
-  category: string,
-  limit: number,
-): Promise<Budget> => {
-  return new Promise((resolve) => {
-    setTimeout(() => {
-      const budgetKey = `${userId}-${month}-${year}`
-
-      if (!dummyBudgets[budgetKey]) {
-        dummyBudgets[budgetKey] = generateDummyBudget(userId)
-        dummyBudgets[budgetKey].month = month
-        dummyBudgets[budgetKey].year = year
-      }
-
-      const budget = dummyBudgets[budgetKey]
-      const categoryIndex = budget.categories.findIndex((c) => c.category === category)
-
-      if (categoryIndex >= 0) {
-        budget.categories[categoryIndex].limit = limit
-      } else {
-        budget.categories.push({
-          category,
-          limit,
-          spent: 0,
-        })
-      }
-
-      resolve(budget)
-    }, 500)
-  })
+  const data = await response.json();
+  return data.budget;
 }
 
 // Get budget summary
@@ -92,56 +29,31 @@ export const getBudgetSummary = async (
   totalBudgeted: number
   totalSpent: number
   remainingBudget: number
-  mostOverspentCategory?: string
-  healthiestCategory?: string
+  mostOverspentCategory?: string | null
+  healthiestCategory?: string | null
 }> => {
-  return new Promise((resolve) => {
-    setTimeout(() => {
-      const currentDate = new Date()
-      const month = currentDate.getMonth()
-      const year = currentDate.getFullYear()
-      const budgetKey = `${userId}-${month}-${year}`
+  const token = localStorage.getItem('token');
+  if (!token) {
+    throw new Error('No authentication token found');
+  }
 
-      if (!dummyBudgets[budgetKey]) {
-        dummyBudgets[budgetKey] = generateDummyBudget(userId)
-      }
+  const response = await fetch(`/api/budgets/summary?userId=${userId}`, {
+    headers: {
+      'Authorization': `Bearer ${token}`,
+    },
+  });
 
-      const budget = dummyBudgets[budgetKey]
+  if (!response.ok) {
+    const errorData = await response.json();
+    throw new Error(errorData.message || 'Failed to fetch budget summary');
+  }
 
-      const totalBudgeted = budget.categories.reduce((sum, cat) => sum + cat.limit, 0)
-      const totalSpent = budget.categories.reduce((sum, cat) => sum + cat.spent, 0)
-
-      // Find most overspent category
-      let mostOverspentCategory: string | undefined
-      let highestOverspentRatio = 0
-
-      // Find healthiest category
-      let healthiestCategory: string | undefined
-      let lowestSpentRatio = 1
-
-      budget.categories.forEach((cat) => {
-        if (cat.limit > 0) {
-          const ratio = cat.spent / cat.limit
-
-          if (ratio > 1 && ratio > highestOverspentRatio) {
-            highestOverspentRatio = ratio
-            mostOverspentCategory = cat.category
-          }
-
-          if (ratio < lowestSpentRatio && cat.spent > 0) {
-            lowestSpentRatio = ratio
-            healthiestCategory = cat.category
-          }
-        }
-      })
-
-      resolve({
-        totalBudgeted,
-        totalSpent,
-        remainingBudget: totalBudgeted - totalSpent,
-        mostOverspentCategory,
-        healthiestCategory,
-      })
-    }, 500)
-  })
+  const data = await response.json();
+  return {
+    totalBudgeted: data.totalBudgeted || 0,
+    totalSpent: data.totalSpent || 0,
+    remainingBudget: data.remainingBudget || 0,
+    mostOverspentCategory: data.mostOverspentCategory || null,
+    healthiestCategory: data.healthiestCategory || null
+  };
 }

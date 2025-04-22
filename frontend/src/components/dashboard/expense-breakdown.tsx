@@ -22,8 +22,7 @@ export function ExpenseBreakdown() {
       const user = getCurrentUser()
       if (user) {
         try {
-          const stats = await getTransactionStats(user.id)
-
+          const stats = await getTransactionStats(user._id)
           // Convert category summary to chart data
           const chartData = Object.entries(stats.categorySummary)
             .map(([category, amount]) => ({

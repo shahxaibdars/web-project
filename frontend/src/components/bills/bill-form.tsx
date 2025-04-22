@@ -48,7 +48,7 @@ export function BillForm({ existingBill, onSuccess }: BillFormProps) {
     resolver: zodResolver(formSchema),
     defaultValues: {
       name: existingBill?.name || "",
-      amount: existingBill?.amount || undefined,
+      amount: existingBill?.amount || 0,
       dueDate: existingBill?.dueDate ? new Date(existingBill.dueDate) : new Date(),
       isRecurring: existingBill?.isRecurring ?? false,
     },
@@ -69,7 +69,7 @@ export function BillForm({ existingBill, onSuccess }: BillFormProps) {
         })
       } else {
         await addBill({
-          userId: user.id,
+          userId: user._id,
           name: values.name,
           amount: values.amount,
           dueDate: values.dueDate,

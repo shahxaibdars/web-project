@@ -7,6 +7,7 @@ import { useRouter } from "next/navigation"
 import { Sidebar } from "@/components/layout/sidebar"
 import { Header } from "@/components/layout/header"
 import { getCurrentUser } from "@/services/authService"
+import { AuthProvider } from "@/lib/auth-context"
 
 export default function DashboardLayout({
   children,
@@ -45,12 +46,14 @@ export default function DashboardLayout({
   }
 
   return (
-    <div className="min-h-screen flex bg-navy">
-      <Sidebar onLogout={handleLogout} />
-      <div className="flex-1 md:ml-64">
-        <Header onLogout={handleLogout} />
-        <main className="container mx-auto p-4 md:p-6">{children}</main>
+    <AuthProvider>
+      <div className="min-h-screen flex bg-navy">
+        <Sidebar onLogout={handleLogout} />
+        <div className="flex-1 md:ml-64">
+          <Header onLogout={handleLogout} />
+          <main className="container mx-auto p-4 md:p-6">{children}</main>
+        </div>
       </div>
-    </div>
+    </AuthProvider>
   )
 }

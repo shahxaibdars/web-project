@@ -1,16 +1,17 @@
 "use client"
 
 import { useState, useEffect } from "react"
-import { ArrowUpRight, ArrowDownRight, Percent, Receipt } from "lucide-react"
+import { ArrowUpRight, ArrowDownRight, Receipt } from "lucide-react"
 import type { DashboardStats } from "@/types"
-import { formatCurrency, formatPercentage } from "@/lib/utils"
+import { formatCurrency } from "@/lib/utils"
 import { getDashboardStats } from "@/services/dashboardService"
 import { getCurrentUser } from "@/services/authService"
 import { StatCard } from "@/components/dashboard/stat-card"
 import { RecentTransactions } from "@/components/dashboard/recent-transactions"
 import { UpcomingBills } from "@/components/dashboard/upcoming-bills"
-import { SavingsProgress } from "@/components/dashboard/savings-progress"
 import { ExpenseBreakdown } from "@/components/dashboard/expense-breakdown"
+import { BudgetCategories } from "@/components/dashboard/budget-categories"
+import { SavingsProgress } from "@/components/dashboard/savings-progress"
 
 export default function DashboardPage() {
   const [stats, setStats] = useState<DashboardStats | null>(null)
@@ -21,7 +22,7 @@ export default function DashboardPage() {
       const user = getCurrentUser()
       if (user) {
         try {
-          const data = await getDashboardStats(user.id)
+          const data = await getDashboardStats(user._id)
           setStats(data)
         } catch (error) {
           console.error("Error fetching dashboard stats:", error)
@@ -55,21 +56,20 @@ export default function DashboardPage() {
                 value={formatCurrency(stats.totalIncome)}
                 description="Current month"
                 icon={ArrowUpRight}
-                trend={{ value: 12, isPositive: true }}
+                trend={{ value: Number(Math.abs(stats.incomeChange).toFixed(1)), isPositive: stats.incomeChange >= 0 }}
               />
               <StatCard
                 title="Total Expenses"
                 value={formatCurrency(stats.totalExpense)}
                 description="Current month"
                 icon={ArrowDownRight}
-                trend={{ value: 8, isPositive: false }}
+                trend={{ value: Number(Math.abs(stats.expenseChange).toFixed(1)), isPositive: stats.expenseChange <= 0 }}
               />
               <StatCard
-                title="Savings Rate"
-                value={formatPercentage(stats.savingsRate)}
-                description="Of total income"
-                icon={Percent}
-                trend={{ value: 5, isPositive: true }}
+                title="Savings Progress"
+                value={`${stats.savingsProgress.toFixed(0)}%`}
+                description="Of total target"
+                icon={Receipt}
               />
               <StatCard
                 title="Upcoming Bills"
@@ -87,8 +87,9 @@ export default function DashboardPage() {
         <UpcomingBills />
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         <ExpenseBreakdown />
+        <BudgetCategories />
         <SavingsProgress />
       </div>
     </div>

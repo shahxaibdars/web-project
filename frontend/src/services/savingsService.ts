@@ -1,143 +1,180 @@
-import type { SavingsGoal } from "../types"
+import type { SavingsGoal } from "@/types"
 
-// Generate dummy savings goals
-const generateDummySavingsGoals = (userId: string): SavingsGoal[] => {
-  return [
-    {
-      id: "savings-1",
-      userId,
-      name: "Emergency Fund",
-      targetAmount: 10000,
-      currentAmount: 5600,
-    },
-    {
-      id: "savings-2",
-      userId,
-      name: "Vacation",
-      targetAmount: 3000,
-      currentAmount: 1200,
-    },
-    {
-      id: "savings-3",
-      userId,
-      name: "New Car",
-      targetAmount: 20000,
-      currentAmount: 4500,
-    },
-    {
-      id: "savings-4",
-      userId,
-      name: "Home Down Payment",
-      targetAmount: 50000,
-      currentAmount: 15000,
-    },
-  ]
+// Get all savings goals
+export const getSavingsGoals = async (): Promise<SavingsGoal[]> => {
+  const token = localStorage.getItem('token')
+  if (!token) {
+    throw new Error('No authentication token found')
+  }
+
+  try {
+    console.log('Fetching savings goals...');
+    const response = await fetch('/api/savings', {
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'Accept': 'application/json'
+      },
+    })
+
+    if (!response.ok) {
+      let errorMessage = 'Failed to fetch savings goals';
+      try {
+        const errorData = await response.json();
+        errorMessage = errorData.message || errorMessage;
+      } catch (e) {
+        // If response is not JSON, use the status text
+        errorMessage = response.statusText || errorMessage;
+      }
+      throw new Error(errorMessage);
+    }
+
+    const data = await response.json();
+    console.log('Fetched savings goals:', data);
+    return data;
+  } catch (error) {
+    console.error('Error in getSavingsGoals:', error);
+    throw error;
+  }
 }
 
-// Dummy savings goals store
-const dummySavingsGoals: Record<string, SavingsGoal[]> = {}
+// Get a specific savings goal
+export const getSavingsGoal = async (id: string): Promise<SavingsGoal> => {
+  const token = localStorage.getItem('token')
+  if (!token) {
+    throw new Error('No authentication token found')
+  }
 
-// Get savings goals for a user
-export const getSavingsGoals = async (userId: string): Promise<SavingsGoal[]> => {
-  return new Promise((resolve) => {
-    setTimeout(() => {
-      if (!dummySavingsGoals[userId]) {
-        dummySavingsGoals[userId] = generateDummySavingsGoals(userId)
+  try {
+    const response = await fetch(`/api/savings/${id}`, {
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'Accept': 'application/json'
+      },
+    })
+
+    if (!response.ok) {
+      let errorMessage = 'Failed to fetch savings goal';
+      try {
+        const errorData = await response.json();
+        errorMessage = errorData.message || errorMessage;
+      } catch (e) {
+        // If response is not JSON, use the status text
+        errorMessage = response.statusText || errorMessage;
       }
+      throw new Error(errorMessage);
+    }
 
-      resolve(dummySavingsGoals[userId])
-    }, 500)
-  })
+    const data = await response.json();
+    return data;
+  } catch (error) {
+    console.error('Error in getSavingsGoal:', error);
+    throw error;
+  }
 }
 
-// Add a new savings goal
-export const addSavingsGoal = async (goal: Omit<SavingsGoal, "id">): Promise<SavingsGoal> => {
-  return new Promise((resolve) => {
-    setTimeout(() => {
-      const newGoal: SavingsGoal = {
-        ...goal,
-        id: `savings-${Date.now()}`,
-      }
+// Create a new savings goal
+export const addSavingsGoal = async (goal: Omit<SavingsGoal, '_id'>): Promise<SavingsGoal> => {
+  const token = localStorage.getItem('token')
+  if (!token) {
+    throw new Error('No authentication token found')
+  }
 
-      if (!dummySavingsGoals[goal.userId]) {
-        dummySavingsGoals[goal.userId] = []
-      }
+  try {
+    console.log('Creating savings goal:', goal);
+    const response = await fetch('/api/savings', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Accept': 'application/json',
+        'Authorization': `Bearer ${token}`,
+      },
+      body: JSON.stringify(goal),
+    })
 
-      dummySavingsGoals[goal.userId].push(newGoal)
-      resolve(newGoal)
-    }, 500)
-  })
+    if (!response.ok) {
+      let errorMessage = 'Failed to create savings goal';
+      try {
+        const errorData = await response.json();
+        errorMessage = errorData.message || errorMessage;
+      } catch (e) {
+        // If response is not JSON, use the status text
+        errorMessage = response.statusText || errorMessage;
+      }
+      throw new Error(errorMessage);
+    }
+
+    const data = await response.json();
+    console.log('Created savings goal:', data);
+    return data;
+  } catch (error) {
+    console.error('Error in addSavingsGoal:', error);
+    throw error;
+  }
 }
 
 // Update a savings goal
-export const updateSavingsGoal = async (goal: SavingsGoal): Promise<SavingsGoal> => {
-  return new Promise((resolve, reject) => {
-    setTimeout(() => {
-      if (!dummySavingsGoals[goal.userId]) {
-        reject(new Error("User has no savings goals"))
-        return
-      }
+export const updateSavingsGoal = async (id: string, updates: Partial<SavingsGoal>): Promise<SavingsGoal> => {
+  const token = localStorage.getItem('token')
+  if (!token) {
+    throw new Error('No authentication token found')
+  }
 
-      const goalIndex = dummySavingsGoals[goal.userId].findIndex((g) => g.id === goal.id)
-
-      if (goalIndex === -1) {
-        reject(new Error("Savings goal not found"))
-        return
-      }
-
-      dummySavingsGoals[goal.userId][goalIndex] = goal
-      resolve(goal)
-    }, 500)
+  const response = await fetch(`/api/savings/${id}`, {
+    method: 'PUT',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${token}`,
+    },
+    body: JSON.stringify(updates),
   })
+
+  if (!response.ok) {
+    const errorData = await response.json()
+    throw new Error(errorData.message || 'Failed to update savings goal')
+  }
+
+  return response.json()
 }
 
 // Delete a savings goal
-export const deleteSavingsGoal = async (userId: string, goalId: string): Promise<void> => {
-  return new Promise((resolve, reject) => {
-    setTimeout(() => {
-      if (!dummySavingsGoals[userId]) {
-        reject(new Error("User has no savings goals"))
-        return
-      }
+export const deleteSavingsGoal = async (id: string): Promise<void> => {
+  const token = localStorage.getItem('token')
+  if (!token) {
+    throw new Error('No authentication token found')
+  }
 
-      const goalIndex = dummySavingsGoals[userId].findIndex((g) => g.id === goalId)
-
-      if (goalIndex === -1) {
-        reject(new Error("Savings goal not found"))
-        return
-      }
-
-      dummySavingsGoals[userId].splice(goalIndex, 1)
-      resolve()
-    }, 500)
+  const response = await fetch(`/api/savings/${id}`, {
+    method: 'DELETE',
+    headers: {
+      'Authorization': `Bearer ${token}`,
+    },
   })
+
+  if (!response.ok) {
+    throw new Error('Failed to delete savings goal')
+  }
 }
 
-// Update savings goal amount
-export const updateSavingsAmount = async (userId: string, goalId: string, amount: number): Promise<SavingsGoal> => {
-  return new Promise((resolve, reject) => {
-    setTimeout(() => {
-      if (!dummySavingsGoals[userId]) {
-        reject(new Error("User has no savings goals"))
-        return
-      }
+// Update progress for a savings goal
+export const updateSavingsAmount = async (id: string, amount: number): Promise<SavingsGoal> => {
+  const token = localStorage.getItem('token')
+  if (!token) {
+    throw new Error('No authentication token found')
+  }
 
-      const goalIndex = dummySavingsGoals[userId].findIndex((g) => g.id === goalId)
-
-      if (goalIndex === -1) {
-        reject(new Error("Savings goal not found"))
-        return
-      }
-
-      const goal = dummySavingsGoals[userId][goalIndex]
-      goal.currentAmount += amount
-
-      // Ensure we don't exceed the target
-      if (goal.currentAmount > goal.targetAmount) {
-        goal.currentAmount = goal.targetAmount
-      }
-
-      resolve(goal)
-    }, 500)
+  const response = await fetch(`/api/savings/${id}/progress`, {
+    method: 'PATCH',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${token}`,
+    },
+    body: JSON.stringify({ amount }),
   })
+
+  if (!response.ok) {
+    const errorData = await response.json()
+    throw new Error(errorData.message || 'Failed to update savings progress')
+  }
+
+  return response.json()
 }

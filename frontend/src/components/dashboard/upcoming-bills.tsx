@@ -16,7 +16,7 @@ export function UpcomingBills() {
       const user = getCurrentUser()
       if (user) {
         try {
-          const data = await getUpcomingBills(user.id, 14) // Get bills due in the next 14 days
+          const data = await getUpcomingBills(user._id, 14) // Get bills due in the next 14 days
           setBills(data)
         } catch (error) {
           console.error("Error fetching bills:", error)
@@ -43,7 +43,8 @@ export function UpcomingBills() {
       <div className="space-y-4">
         {bills.length > 0 ? (
           bills.map((bill) => {
-            const daysUntil = getDaysUntil(bill.dueDate)
+            const dueDate = new Date(bill.dueDate);
+            const daysUntil = getDaysUntil(dueDate);
             let urgencyClass = "text-emerald"
 
             if (daysUntil <= 3) {
@@ -54,7 +55,7 @@ export function UpcomingBills() {
 
             return (
               <div
-                key={bill.id}
+                key={bill._id}
                 className="flex items-center justify-between py-2 border-b border-emerald/10 last:border-0"
               >
                 <div className="flex items-center">
@@ -63,7 +64,7 @@ export function UpcomingBills() {
                   </div>
                   <div className="ml-3">
                     <p className="text-sm font-medium">{bill.name}</p>
-                    <p className="text-xs text-muted-foreground">{new Date(bill.dueDate).toLocaleDateString()}</p>
+                    <p className="text-xs text-muted-foreground">{dueDate.toLocaleDateString()}</p>
                   </div>
                 </div>
                 <div className="flex flex-col items-end">

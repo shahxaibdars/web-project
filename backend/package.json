@@ -4,15 +4,23 @@
   "description": "",
   "main": "app.js",
   "scripts": {
+    "start": "node app.js",
+    "dev": "nodemon app.js",
     "test": "echo \"Error: no test specified\" && exit 1"
-   
   },
   "keywords": [],
   "author": "Shahzaib",
   "license": "ISC",
   "dependencies": {
+    "bcryptjs": "^2.4.3",
+    "cors": "^2.8.5",
+    "dotenv": "^16.0.3",
     "express": "^4.21.2",
+    "jsonwebtoken": "^9.0.0",
     "mongoose": "^8.12.1",
     "passport-local-mongoose": "^8.0.0"
+  },
+  "devDependencies": {
+    "nodemon": "^2.0.22"
   }
 }

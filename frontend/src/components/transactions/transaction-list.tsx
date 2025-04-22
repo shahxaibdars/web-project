@@ -1,9 +1,9 @@
 "use client"
 
 import { useState, useEffect } from "react"
-import { ArrowDownIcon, ArrowUpIcon, Search, Trash2 } from "lucide-react"
+import { ArrowDownIcon, ArrowUpIcon, Search, Trash2, Pencil, ChevronLeft, ChevronRight } from "lucide-react"
 import type { Transaction } from "@/types"
-import { formatCurrency, formatDate } from "@/lib/utils"
+import { formatCurrency, formatDate, getMonthName } from "@/lib/utils"
 import { getTransactions, deleteTransaction } from "@/services/transactionService"
 import { getCurrentUser } from "@/services/authService"
 import { Input } from "@/components/ui/input"
@@ -21,6 +21,7 @@ import {
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog"
 import { categories } from "@/services/transactionService"
+import { TransactionForm } from "@/components/transactions/transaction-form"
 
 interface TransactionListProps {
   refreshTrigger?: number
@@ -34,26 +35,52 @@ export function TransactionList({ refreshTrigger = 0 }: TransactionListProps) {
   const [typeFilter, setTypeFilter] = useState<string>("all")
   const [categoryFilter, setCategoryFilter] = useState<string>("all")
   const [transactionToDelete, setTransactionToDelete] = useState<string | null>(null)
+  const [transactionToEdit, setTransactionToEdit] = useState<Transaction | null>(null)
+  const [currentMonth, setCurrentMonth] = useState(new Date().getMonth())
+  const [currentYear, setCurrentYear] = useState(new Date().getFullYear())
 
-  useEffect(() => {
-    const fetchTransactions = async () => {
-      setIsLoading(true)
-      const user = getCurrentUser()
-      if (user) {
-        try {
-          const data = await getTransactions(user.id)
-          setTransactions(data)
-          setFilteredTransactions(data)
-        } catch (error) {
-          console.error("Error fetching transactions:", error)
-        } finally {
-          setIsLoading(false)
-        }
+  const fetchTransactions = async () => {
+    setIsLoading(true)
+    const user = getCurrentUser()
+    if (user) {
+      try {
+        console.log('Fetching transactions for:', { month: currentMonth, year: currentYear })
+        const { transactions: data } = await getTransactions(user._id, 1, 10, {
+          month: currentMonth,
+          year: currentYear
+        })
+        console.log('Fetched transactions:', data)
+        setTransactions(data)
+        setFilteredTransactions(data)
+      } catch (error) {
+        console.error("Error fetching transactions:", error)
+      } finally {
+        setIsLoading(false)
       }
     }
+  }
 
+  useEffect(() => {
     fetchTransactions()
-  }, [refreshTrigger])
+  }, [refreshTrigger, currentMonth, currentYear])
+
+  const handlePreviousMonth = () => {
+    if (currentMonth === 0) {
+      setCurrentMonth(11)
+      setCurrentYear(currentYear - 1)
+    } else {
+      setCurrentMonth(currentMonth - 1)
+    }
+  }
+
+  const handleNextMonth = () => {
+    if (currentMonth === 11) {
+      setCurrentMonth(0)
+      setCurrentYear(currentYear + 1)
+    } else {
+      setCurrentMonth(currentMonth + 1)
+    }
+  }
 
   useEffect(() => {
     // Apply filters
@@ -85,8 +112,8 @@ export function TransactionList({ refreshTrigger = 0 }: TransactionListProps) {
     if (!user) return
 
     try {
-      await deleteTransaction(user.id, transactionToDelete)
-      setTransactions((prev) => prev.filter((t) => t.id !== transactionToDelete))
+      await deleteTransaction(transactionToDelete)
+      setTransactions((prev) => prev.filter((t) => t._id !== transactionToDelete))
       setTransactionToDelete(null)
     } catch (error) {
       console.error("Error deleting transaction:", error)
@@ -114,6 +141,17 @@ export function TransactionList({ refreshTrigger = 0 }: TransactionListProps) {
           />
         </div>
         <div className="flex gap-2">
+          <div className="flex items-center gap-2">
+            <Button variant="outline" size="icon" onClick={handlePreviousMonth}>
+              <ChevronLeft className="h-4 w-4" />
+            </Button>
+            <span className="text-sm font-medium min-w-[120px] text-center">
+              {getMonthName(currentMonth)} {currentYear}
+            </span>
+            <Button variant="outline" size="icon" onClick={handleNextMonth}>
+              <ChevronRight className="h-4 w-4" />
+            </Button>
+          </div>
           <Select value={typeFilter} onValueChange={setTypeFilter}>
             <SelectTrigger className="w-[130px]">
               <SelectValue placeholder="Type" />
@@ -156,7 +194,7 @@ export function TransactionList({ refreshTrigger = 0 }: TransactionListProps) {
           <tbody>
             {filteredTransactions.length > 0 ? (
               filteredTransactions.map((transaction) => (
-                <tr key={transaction.id} className="border-b border-emerald/10 hover:bg-charcoal/30 transition-colors">
+                <tr key={transaction._id} className="border-b border-emerald/10 hover:bg-charcoal/30 transition-colors">
                   <td className="py-3 px-4">
                     <div className="flex items-center">
                       <div
@@ -185,25 +223,34 @@ export function TransactionList({ refreshTrigger = 0 }: TransactionListProps) {
                     {formatCurrency(transaction.amount)}
                   </td>
                   <td className="py-3 px-4 text-right">
-                    <AlertDialog>
-                      <AlertDialogTrigger asChild>
-                        <Button variant="ghost" size="icon" onClick={() => setTransactionToDelete(transaction.id)}>
-                          <Trash2 className="h-4 w-4 text-muted-foreground hover:text-destructive" />
-                        </Button>
-                      </AlertDialogTrigger>
-                      <AlertDialogContent>
-                        <AlertDialogHeader>
-                          <AlertDialogTitle>Delete Transaction</AlertDialogTitle>
-                          <AlertDialogDescription>
-                            Are you sure you want to delete this transaction? This action cannot be undone.
-                          </AlertDialogDescription>
-                        </AlertDialogHeader>
-                        <AlertDialogFooter>
-                          <AlertDialogCancel onClick={() => setTransactionToDelete(null)}>Cancel</AlertDialogCancel>
-                          <AlertDialogAction onClick={handleDelete}>Delete</AlertDialogAction>
-                        </AlertDialogFooter>
-                      </AlertDialogContent>
-                    </AlertDialog>
+                    <div className="flex justify-end gap-2">
+                      <Button 
+                        variant="ghost" 
+                        size="icon"
+                        onClick={() => setTransactionToEdit(transaction)}
+                      >
+                        <Pencil className="h-4 w-4 text-muted-foreground hover:text-primary" />
+                      </Button>
+                      <AlertDialog>
+                        <AlertDialogTrigger asChild>
+                          <Button variant="ghost" size="icon" onClick={() => setTransactionToDelete(transaction._id)}>
+                            <Trash2 className="h-4 w-4 text-muted-foreground hover:text-destructive" />
+                          </Button>
+                        </AlertDialogTrigger>
+                        <AlertDialogContent>
+                          <AlertDialogHeader>
+                            <AlertDialogTitle>Are you sure?</AlertDialogTitle>
+                            <AlertDialogDescription>
+                              This action cannot be undone. This will permanently delete the transaction.
+                            </AlertDialogDescription>
+                          </AlertDialogHeader>
+                          <AlertDialogFooter>
+                            <AlertDialogCancel>Cancel</AlertDialogCancel>
+                            <AlertDialogAction onClick={handleDelete}>Delete</AlertDialogAction>
+                          </AlertDialogFooter>
+                        </AlertDialogContent>
+                      </AlertDialog>
+                    </div>
                   </td>
                 </tr>
               ))
@@ -217,6 +264,16 @@ export function TransactionList({ refreshTrigger = 0 }: TransactionListProps) {
           </tbody>
         </table>
       </div>
+
+      {transactionToEdit && (
+        <TransactionForm
+          initialData={transactionToEdit}
+          onSuccess={() => {
+            setTransactionToEdit(null)
+            fetchTransactions()
+          }}
+        />
+      )}
     </div>
   )
 }

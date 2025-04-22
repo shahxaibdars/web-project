@@ -21,7 +21,7 @@ export function BudgetOverview() {
     const user = getCurrentUser()
     if (user) {
       try {
-        const data = await getBudget(user.id, currentMonth, currentYear)
+        const data = await getBudget(user._id, currentMonth, currentYear)
         setBudget(data)
       } catch (error) {
         console.error("Error fetching budget:", error)
@@ -119,6 +119,7 @@ export function BudgetOverview() {
                     year={currentYear}
                     existingCategory={category}
                     onSuccess={fetchBudget}
+                    hasTransactions={budget.categories.some(cat => cat.spent > 0)}
                   />
                 </div>
               </div>
@@ -142,7 +143,12 @@ export function BudgetOverview() {
         ) : (
           <div className="text-center py-8">
             <p className="text-muted-foreground mb-4">No budget categories set for this month</p>
-            <BudgetForm month={currentMonth} year={currentYear} onSuccess={fetchBudget} />
+            <BudgetForm
+              month={currentMonth}
+              year={currentYear}
+              onSuccess={fetchBudget}
+              hasTransactions={false}
+            />
           </div>
         )}
       </div>

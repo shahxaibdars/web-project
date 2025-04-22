@@ -43,7 +43,7 @@ export function SavingsForm({ existingGoal, onSuccess }: SavingsFormProps) {
     resolver: zodResolver(formSchema),
     defaultValues: {
       name: existingGoal?.name || "",
-      targetAmount: existingGoal?.targetAmount || undefined,
+      targetAmount: existingGoal?.targetAmount || 0,
       currentAmount: existingGoal?.currentAmount || 0,
     },
   })
@@ -62,7 +62,7 @@ export function SavingsForm({ existingGoal, onSuccess }: SavingsFormProps) {
         })
       } else {
         await addSavingsGoal({
-          userId: user.id,
+          userId: user._id,
           name: values.name,
           targetAmount: values.targetAmount,
           currentAmount: values.currentAmount,

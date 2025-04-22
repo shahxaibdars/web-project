@@ -6,6 +6,7 @@ import { useForm } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
 import { CalendarIcon, Plus } from "lucide-react"
 import { format } from "date-fns"
+import type { Transaction } from "@/types"
 
 import { Button } from "@/components/ui/button"
 import {
@@ -24,11 +25,11 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { Calendar } from "@/components/ui/calendar"
 import { Textarea } from "@/components/ui/textarea"
 import { categories } from "@/services/transactionService"
-import { addTransaction } from "@/services/transactionService"
+import { addTransaction, updateTransaction } from "@/services/transactionService"
 import { getCurrentUser } from "@/services/authService"
 
 const formSchema = z.object({
-  type: z.enum(["income", "expense"]),
+  type: z.enum(["income", "expense", "transfer"]),
   category: z.string().min(1, { message: "Please select a category" }),
   amount: z.coerce.number().positive({ message: "Amount must be positive" }),
   date: z.date(),
@@ -39,66 +40,84 @@ type FormValues = z.infer<typeof formSchema>
 
 interface TransactionFormProps {
   onSuccess: () => void
+  initialData?: Transaction
 }
 
-export function TransactionForm({ onSuccess }: TransactionFormProps) {
-  const [open, setOpen] = useState(false)
+export function TransactionForm({ onSuccess, initialData }: TransactionFormProps) {
+  const [open, setOpen] = useState(!!initialData)
 
   const form = useForm<FormValues>({
     resolver: zodResolver(formSchema),
     defaultValues: {
-      type: "expense",
-      category: "",
-      amount: undefined,
-      date: new Date(),
-      description: "",
+      type: initialData?.type || "expense",
+      category: initialData?.category || "",
+      amount: initialData?.amount || 0,
+      date: initialData?.date ? new Date(initialData.date) : new Date(),
+      description: initialData?.description || "",
     },
   })
 
   const onSubmit = async (values: FormValues) => {
-    const user = getCurrentUser()
-    if (!user) return
-
     try {
-      await addTransaction({
-        userId: user.id,
+      const user = getCurrentUser()
+      if (!user) return
+
+      const transactionData = {
         type: values.type,
         category: values.category,
         amount: values.amount,
-        date: values.date,
+        date: new Date(values.date),
         description: values.description,
-      })
+        status: initialData?.status || 'completed',
+        tags: initialData?.tags || [],
+      }
 
-      form.reset()
+      if (initialData) {
+        // Update existing transaction
+        await updateTransaction(initialData._id, transactionData)
+      } else {
+        // Create new transaction
+        await addTransaction({
+          ...transactionData,
+          user: user._id,
+        })
+      }
+
+      onSuccess?.()
       setOpen(false)
-      onSuccess()
+      form.reset()
     } catch (error) {
-      console.error("Error adding transaction:", error)
+      console.error('Error submitting transaction:', error)
+      throw error
     }
   }
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
-      <DialogTrigger asChild>
-        <Button className="gap-2">
-          <Plus className="h-4 w-4" />
-          Add Transaction
-        </Button>
-      </DialogTrigger>
+      {!initialData && (
+        <DialogTrigger asChild>
+          <Button className="gap-2">
+            <Plus className="h-4 w-4" />
+            Add Transaction
+          </Button>
+        </DialogTrigger>
+      )}
       <DialogContent className="sm:max-w-[425px]">
         <DialogHeader>
-          <DialogTitle>Add Transaction</DialogTitle>
-          <DialogDescription>Enter the details of your transaction below.</DialogDescription>
+          <DialogTitle>{initialData ? 'Edit Transaction' : 'Add Transaction'}</DialogTitle>
+          <DialogDescription>
+            {initialData ? 'Update the details of your transaction below.' : 'Enter the details of your transaction below.'}
+          </DialogDescription>
         </DialogHeader>
         <Form {...form}>
           <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
             <FormField
               control={form.control}
               name="type"
-              render={({ field }: any) => (
+              render={({ field }) => (
                 <FormItem>
                   <FormLabel>Type</FormLabel>
-                  <Select onValueChange={field.onChange} defaultValue={field.value}>
+                  <Select onValueChange={field.onChange} value={field.value}>
                     <FormControl>
                       <SelectTrigger>
                         <SelectValue placeholder="Select type" />
@@ -107,6 +126,7 @@ export function TransactionForm({ onSuccess }: TransactionFormProps) {
                     <SelectContent>
                       <SelectItem value="income">Income</SelectItem>
                       <SelectItem value="expense">Expense</SelectItem>
+                      <SelectItem value="transfer">Transfer</SelectItem>
                     </SelectContent>
                   </Select>
                   <FormMessage />
@@ -117,10 +137,10 @@ export function TransactionForm({ onSuccess }: TransactionFormProps) {
             <FormField
               control={form.control}
               name="category"
-              render={({ field }: any) => (
+              render={({ field }) => (
                 <FormItem>
                   <FormLabel>Category</FormLabel>
-                  <Select onValueChange={field.onChange} defaultValue={field.value}>
+                  <Select onValueChange={field.onChange} value={field.value}>
                     <FormControl>
                       <SelectTrigger>
                         <SelectValue placeholder="Select category" />
@@ -142,11 +162,17 @@ export function TransactionForm({ onSuccess }: TransactionFormProps) {
             <FormField
               control={form.control}
               name="amount"
-              render={({ field }: any) => (
+              render={({ field }) => (
                 <FormItem>
                   <FormLabel>Amount</FormLabel>
                   <FormControl>
-                    <Input type="number" placeholder="0.00" {...field} step="0.01" />
+                    <Input 
+                      type="number" 
+                      placeholder="0.00" 
+                      {...field} 
+                      step="0.01"
+                      onChange={(e) => field.onChange(Number(e.target.value))}
+                    />
                   </FormControl>
                   <FormMessage />
                 </FormItem>
@@ -156,7 +182,7 @@ export function TransactionForm({ onSuccess }: TransactionFormProps) {
             <FormField
               control={form.control}
               name="date"
-              render={({ field }: any) => (
+              render={({ field }) => (
                 <FormItem className="flex flex-col">
                   <FormLabel>Date</FormLabel>
                   <Popover>
@@ -180,7 +206,7 @@ export function TransactionForm({ onSuccess }: TransactionFormProps) {
             <FormField
               control={form.control}
               name="description"
-              render={({ field }: any) => (
+              render={({ field }) => (
                 <FormItem>
                   <FormLabel>Description</FormLabel>
                   <FormControl>
@@ -192,7 +218,7 @@ export function TransactionForm({ onSuccess }: TransactionFormProps) {
             />
 
             <DialogFooter>
-              <Button type="submit">Add Transaction</Button>
+              <Button type="submit">Save Transaction</Button>
             </DialogFooter>
           </form>
         </Form>

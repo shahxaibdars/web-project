@@ -1,179 +1,115 @@
 import type { Bill } from "../types"
 
-// Generate dummy bills
-const generateDummyBills = (userId: string): Bill[] => {
-  const bills: Bill[] = [
-    {
-      id: "bill-1",
-      userId,
-      name: "Rent",
-      dueDate: new Date(new Date().setDate(new Date().getDate() + 5)),
-      amount: 1200,
-      isRecurring: true,
-    },
-    {
-      id: "bill-2",
-      userId,
-      name: "Electricity",
-      dueDate: new Date(new Date().setDate(new Date().getDate() + 12)),
-      amount: 85,
-      isRecurring: true,
-    },
-    {
-      id: "bill-3",
-      userId,
-      name: "Internet",
-      dueDate: new Date(new Date().setDate(new Date().getDate() + 8)),
-      amount: 65,
-      isRecurring: true,
-    },
-    {
-      id: "bill-4",
-      userId,
-      name: "Phone",
-      dueDate: new Date(new Date().setDate(new Date().getDate() + 15)),
-      amount: 45,
-      isRecurring: true,
-    },
-    {
-      id: "bill-5",
-      userId,
-      name: "Car Insurance",
-      dueDate: new Date(new Date().setDate(new Date().getDate() + 20)),
-      amount: 120,
-      isRecurring: true,
-    },
-    {
-      id: "bill-6",
-      userId,
-      name: "Gym Membership",
-      dueDate: new Date(new Date().setDate(new Date().getDate() + 3)),
-      amount: 50,
-      isRecurring: true,
-    },
-    {
-      id: "bill-7",
-      userId,
-      name: "Streaming Services",
-      dueDate: new Date(new Date().setDate(new Date().getDate() + 18)),
-      amount: 30,
-      isRecurring: true,
-    },
-  ]
-
-  return bills
-}
-
-// Dummy bills store
-const dummyBills: Record<string, Bill[]> = {}
-
 // Get bills for a user
 export const getBills = async (userId: string): Promise<Bill[]> => {
-  return new Promise((resolve) => {
-    setTimeout(() => {
-      if (!dummyBills[userId]) {
-        dummyBills[userId] = generateDummyBills(userId)
-      }
+  const token = localStorage.getItem('token');
+  if (!token) {
+    throw new Error('No authentication token found');
+  }
 
-      // Sort by due date
-      const sortedBills = [...dummyBills[userId]].sort((a, b) => a.dueDate.getTime() - b.dueDate.getTime())
+  const response = await fetch(`http://localhost:5001/api/bills?userId=${userId}`, {
+    headers: {
+      'Authorization': `Bearer ${token}`,
+    },
+  });
 
-      resolve(sortedBills)
-    }, 500)
-  })
+  if (!response.ok) {
+    throw new Error('Failed to fetch bills');
+  }
+
+  const data = await response.json();
+  return data.bills || data;
 }
 
 // Add a new bill
-export const addBill = async (bill: Omit<Bill, "id">): Promise<Bill> => {
-  return new Promise((resolve) => {
-    setTimeout(() => {
-      const newBill: Bill = {
-        ...bill,
-        id: `bill-${Date.now()}`,
-      }
+export const addBill = async (bill: Omit<Bill, "_id">): Promise<Bill> => {
+  const token = localStorage.getItem('token');
+  if (!token) {
+    throw new Error('No authentication token found');
+  }
 
-      if (!dummyBills[bill.userId]) {
-        dummyBills[bill.userId] = []
-      }
+  const response = await fetch('http://localhost:5001/api/bills', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${token}`,
+    },
+    body: JSON.stringify({
+      ...bill,
+      user: bill.userId,
+    }),
+  }); 
 
-      dummyBills[bill.userId].push(newBill)
+  if (!response.ok) {
+    throw new Error('Failed to add bill');
+  }
 
-      // Sort by due date
-      dummyBills[bill.userId].sort((a, b) => a.dueDate.getTime() - b.dueDate.getTime())
-
-      resolve(newBill)
-    }, 500)
-  })
+  const data = await response.json();
+  return data.bill;
 }
 
 // Update a bill
 export const updateBill = async (bill: Bill): Promise<Bill> => {
-  return new Promise((resolve, reject) => {
-    setTimeout(() => {
-      if (!dummyBills[bill.userId]) {
-        reject(new Error("User has no bills"))
-        return
-      }
 
-      const billIndex = dummyBills[bill.userId].findIndex((b) => b.id === bill.id)
+  const token = localStorage.getItem('token');
+  if (!token) {
+    throw new Error('No authentication token found');
+  }
 
-      if (billIndex === -1) {
-        reject(new Error("Bill not found"))
-        return
-      }
+  const response = await fetch(`http://localhost:5001/api/bills/${bill._id}`, {
+    method: 'PUT',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${token}`,
+    },
+    body: JSON.stringify(bill),
+  });
 
-      dummyBills[bill.userId][billIndex] = bill
+  if (!response.ok) {
+    throw new Error('Failed to update bill');
+  }
 
-      // Sort by due date
-      dummyBills[bill.userId].sort((a, b) => a.dueDate.getTime() - b.dueDate.getTime())
-
-      resolve(bill)
-    }, 500)
-  })
+  const data = await response.json();
+  return data.bill;
 }
 
 // Delete a bill
 export const deleteBill = async (userId: string, billId: string): Promise<void> => {
-  return new Promise((resolve, reject) => {
-    setTimeout(() => {
-      if (!dummyBills[userId]) {
-        reject(new Error("User has no bills"))
-        return
-      }
+  const token = localStorage.getItem('token');
+  if (!token) {
+    throw new Error('No authentication token found');
+  }
 
-      const billIndex = dummyBills[userId].findIndex((b) => b.id === billId)
+  const response = await fetch(`http://localhost:5001/api/bills/${billId}`, {
+    method: 'DELETE',
+    headers: {
+      'Authorization': `Bearer ${token}`,
+    },
+  });
 
-      if (billIndex === -1) {
-        reject(new Error("Bill not found"))
-        return
-      }
-
-      dummyBills[userId].splice(billIndex, 1)
-      resolve()
-    }, 500)
-  })
+  if (!response.ok) { 
+    throw new Error('Failed to delete bill');
+  }
 }
 
 // Get upcoming bills
 export const getUpcomingBills = async (userId: string, days = 7): Promise<Bill[]> => {
-  return new Promise((resolve) => {
-    setTimeout(() => {
-      if (!dummyBills[userId]) {
-        dummyBills[userId] = generateDummyBills(userId)
-      }
+  const token = localStorage.getItem('token');
+  if (!token) {
+    throw new Error('No authentication token found');
+  }
 
-      const currentDate = new Date()
-      const futureDate = new Date()
-      futureDate.setDate(currentDate.getDate() + days)
+  const response = await fetch(`http://localhost:5001/api/bills/upcoming?userId=${userId}&days=${days}`, {
+    headers: {
+      'Authorization': `Bearer ${token}`,
+    },
+  });
 
-      const upcomingBills = dummyBills[userId].filter(
-        (bill) => bill.dueDate >= currentDate && bill.dueDate <= futureDate,
-      )
+  if (!response.ok) {
+    const errorData = await response.json();
+    throw new Error(errorData.message || 'Failed to fetch upcoming bills');
+  }
 
-      // Sort by due date
-      upcomingBills.sort((a, b) => a.dueDate.getTime() - b.dueDate.getTime())
-
-      resolve(upcomingBills)
-    }, 500)
-  })
+  const data = await response.json();
+  return data.bills || [];
 }

@@ -4,7 +4,7 @@ const router = express.Router();
 const User = require('../models/User');
 const Transaction = require('../models/Transaction');
 const Budget = require('../models/Budget');
-const SavingsGoal = require('../models/SavingsGoal');
+const Savings = require('../models/savings');
 const Bill = require('../models/Bill');
 const LoanApplication = require('../models/LoanApplication');
 
@@ -14,7 +14,7 @@ router.post('/', async (req, res) => {
     await User.deleteMany({});
     await Transaction.deleteMany({});
     await Budget.deleteMany({});
-    await SavingsGoal.deleteMany({});
+    await Savings.deleteMany({});
     await Bill.deleteMany({});
     await LoanApplication.deleteMany({});
 
@@ -46,7 +46,7 @@ router.post('/', async (req, res) => {
     ]);
 
     // Insert dummy savings goal
-    await SavingsGoal.insertMany([
+    await Savings.insertMany([
       { user: users[0]._id, name: 'Emergency Fund', targetAmount: 1000, currentAmount: 250 },
     ]);
 

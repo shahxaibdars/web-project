@@ -48,7 +48,7 @@ export function SavingsList({ refreshTrigger = 0 }: SavingsListProps) {
     const user = getCurrentUser()
     if (user) {
       try {
-        const data = await getSavingsGoals(user.id)
+        const data = await getSavingsGoals()
         setGoals(data)
       } catch (error) {
         console.error("Error fetching savings goals:", error)
@@ -69,8 +69,8 @@ export function SavingsList({ refreshTrigger = 0 }: SavingsListProps) {
     if (!user) return
 
     try {
-      await deleteSavingsGoal(user.id, goalToDelete)
-      setGoals((prev) => prev.filter((g) => g.id !== goalToDelete))
+      await deleteSavingsGoal(goalToDelete)
+      setGoals((prev) => prev.filter((g) => g._id !== goalToDelete))
       setGoalToDelete(null)
     } catch (error) {
       console.error("Error deleting savings goal:", error)
@@ -84,9 +84,8 @@ export function SavingsList({ refreshTrigger = 0 }: SavingsListProps) {
     if (!user) return
 
     try {
-      const updatedGoal = await updateSavingsAmount(user.id, contributingGoalId, contributionAmount)
-
-      setGoals((prev) => prev.map((goal) => (goal.id === updatedGoal.id ? updatedGoal : goal)))
+      const updatedGoal = await updateSavingsAmount(contributingGoalId, contributionAmount)
+      setGoals((prev) => prev.map((goal) => (goal._id === updatedGoal._id ? updatedGoal : goal)))
 
       setContributingGoalId(null)
       setContributionAmount(0)
@@ -111,7 +110,7 @@ export function SavingsList({ refreshTrigger = 0 }: SavingsListProps) {
             const percentage = calculatePercentage(goal.currentAmount, goal.targetAmount)
 
             return (
-              <Card key={goal.id} className="glass-card border-emerald/20">
+              <Card key={goal._id} className="glass-card border-emerald/20">
                 <CardHeader className="pb-2">
                   <CardTitle>{goal.name}</CardTitle>
                   <CardDescription>
@@ -135,7 +134,7 @@ export function SavingsList({ refreshTrigger = 0 }: SavingsListProps) {
                     <SavingsForm existingGoal={goal} onSuccess={fetchGoals} />
                     <Dialog>
                       <DialogTrigger asChild>
-                        <Button variant="outline" size="sm" onClick={() => setContributingGoalId(goal.id)}>
+                        <Button variant="outline" size="sm" onClick={() => setContributingGoalId(goal._id)}>
                           <Plus className="h-4 w-4 mr-1" /> Contribute
                         </Button>
                       </DialogTrigger>
@@ -172,7 +171,7 @@ export function SavingsList({ refreshTrigger = 0 }: SavingsListProps) {
                   </div>
                   <AlertDialog>
                     <AlertDialogTrigger asChild>
-                      <Button variant="destructive" size="sm" onClick={() => setGoalToDelete(goal.id)}>
+                      <Button variant="destructive" size="sm" onClick={() => setGoalToDelete(goal._id)}>
                         Delete
                       </Button>
                     </AlertDialogTrigger>

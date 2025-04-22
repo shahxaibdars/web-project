@@ -1,18 +1,20 @@
 export interface User {
-  id: string
+  _id: string
   name: string
   email: string
   role: "regular" | "premium" | "admin" | "bank_manager" | "loan_distributor" | "financial_advisor"
 }
 
 export interface Transaction {
-  id: string
-  userId: string
+  _id: string
+  user: string
+  type: 'income' | 'expense' | 'transfer'
   amount: number
   category: string
-  date: Date
   description?: string
-  type: "income" | "expense"
+  date: Date
+  status: 'pending' | 'completed' | 'failed'
+  tags?: string[]
 }
 
 export interface Budget {
@@ -30,7 +32,7 @@ export interface BudgetCategory {
 }
 
 export interface Bill {
-  id: string
+  _id: string
   userId: string
   name: string
   dueDate: Date
@@ -39,11 +41,14 @@ export interface Bill {
 }
 
 export interface SavingsGoal {
-  id: string
-  userId: string
+  _id: string
   name: string
   targetAmount: number
   currentAmount: number
+  status: 'in_progress' | 'completed'
+  user: string
+  createdAt: string
+  updatedAt: string
 }
 
 export interface LoanApplication {
@@ -64,9 +69,10 @@ export interface AuthState {
 export interface DashboardStats {
   totalIncome: number
   totalExpense: number
-  savingsRate: number
+  incomeChange: number
+  expenseChange: number
+  savingsProgress: number
   upcomingBills: number
-  pendingLoans: number
 }
 
 export type CategoryColors = Record<string, string>

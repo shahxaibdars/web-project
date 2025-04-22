@@ -6,38 +6,49 @@ import { useForm } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
 import type { User } from "@/types"
 import { getCurrentUser } from "@/services/authService"
+import { updateProfile, deleteAccount } from "@/services/userService"
+import { useRouter } from "next/navigation"
+import { useAuth } from "@/lib/auth-context"
 import { Button } from "@/components/ui/button"
-import { Form, FormControl, FormDescription, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form"
+import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form"
 import { Input } from "@/components/ui/input"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { Switch } from "@/components/ui/switch"
-import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog"
 
 const profileFormSchema = z.object({
   name: z.string().min(1, { message: "Name is required" }),
   email: z.string().email({ message: "Please enter a valid email address" }),
+  currentPassword: z.string().min(1, { message: "Current password is required" }),
 })
 
-const notificationsFormSchema = z.object({
-  emailNotifications: z.boolean(),
-  pushNotifications: z.boolean(),
-  billReminders: z.boolean(),
-  weeklyReports: z.boolean(),
-  savingsUpdates: z.boolean(),
-})
-
-const appearanceFormSchema = z.object({
-  theme: z.enum(["system", "light", "dark"]),
-  currency: z.enum(["USD", "EUR", "GBP", "JPY", "CAD"]),
+const passwordFormSchema = z.object({
+  currentPassword: z.string().min(1, { message: "Current password is required" }),
+  newPassword: z.string().min(6, { message: "Password must be at least 6 characters" }),
+  confirmPassword: z.string().min(1, { message: "Please confirm your password" }),
+}).refine((data) => data.newPassword === data.confirmPassword, {
+  message: "Passwords don't match",
+  path: ["confirmPassword"],
 })
 
 type ProfileFormValues = z.infer<typeof profileFormSchema>
-type NotificationsFormValues = z.infer<typeof notificationsFormSchema>
-type AppearanceFormValues = z.infer<typeof appearanceFormSchema>
+type PasswordFormValues = z.infer<typeof passwordFormSchema>
 
 export default function SettingsPage() {
   const [user, setUser] = useState<User | null>(null)
+  const [isLoading, setIsLoading] = useState(false)
+  const [error, setError] = useState("")
+  const router = useRouter()
+  const { logout } = useAuth()
 
   useEffect(() => {
     const currentUser = getCurrentUser()
@@ -49,25 +60,16 @@ export default function SettingsPage() {
     defaultValues: {
       name: user?.name || "",
       email: user?.email || "",
+      currentPassword: "",
     },
   })
 
-  const notificationsForm = useForm<NotificationsFormValues>({
-    resolver: zodResolver(notificationsFormSchema),
+  const passwordForm = useForm<PasswordFormValues>({
+    resolver: zodResolver(passwordFormSchema),
     defaultValues: {
-      emailNotifications: true,
-      pushNotifications: false,
-      billReminders: true,
-      weeklyReports: true,
-      savingsUpdates: true,
-    },
-  })
-
-  const appearanceForm = useForm<AppearanceFormValues>({
-    resolver: zodResolver(appearanceFormSchema),
-    defaultValues: {
-      theme: "dark",
-      currency: "USD",
+      currentPassword: "",
+      newPassword: "",
+      confirmPassword: "",
     },
   })
 
@@ -76,23 +78,56 @@ export default function SettingsPage() {
       profileForm.reset({
         name: user.name,
         email: user.email,
+        currentPassword: "",
       })
     }
   }, [user, profileForm])
 
-  const onProfileSubmit = (data: ProfileFormValues) => {
-    console.log("Profile data:", data)
-    // In a real app, we would update the user profile here
+  const onProfileSubmit = async (data: ProfileFormValues) => {
+    try {
+      setIsLoading(true)
+      setError("")
+      await updateProfile({
+        name: data.name,
+        email: data.email,
+        currentPassword: data.currentPassword,
+      })
+      profileForm.reset({ ...data, currentPassword: "" })
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to update profile")
+    } finally {
+      setIsLoading(false)
+    }
   }
 
-  const onNotificationsSubmit = (data: NotificationsFormValues) => {
-    console.log("Notifications data:", data)
-    // In a real app, we would update the notification settings here
+  const onPasswordSubmit = async (data: PasswordFormValues) => {
+    try {
+      setIsLoading(true)
+      setError("")
+      await updateProfile({
+        currentPassword: data.currentPassword,
+        newPassword: data.newPassword,
+      })
+      passwordForm.reset()
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to update password")
+    } finally {
+      setIsLoading(false)
+    }
   }
 
-  const onAppearanceSubmit = (data: AppearanceFormValues) => {
-    console.log("Appearance data:", data)
-    // In a real app, we would update the appearance settings here
+  const handleDeleteAccount = async () => {
+    try {
+      setIsLoading(true)
+      setError("")
+      await deleteAccount()
+      logout()
+      router.push("/login")
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to delete account")
+    } finally {
+      setIsLoading(false)
+    }
   }
 
   return (
@@ -108,6 +143,10 @@ export default function SettingsPage() {
           <CardContent>
             <Form {...profileForm}>
               <form onSubmit={profileForm.handleSubmit(onProfileSubmit)} className="space-y-4">
+                {error && (
+                  <div className="text-sm text-destructive">{error}</div>
+                )}
+
                 <FormField
                   control={profileForm.control}
                   name="name"
@@ -129,152 +168,7 @@ export default function SettingsPage() {
                     <FormItem>
                       <FormLabel>Email</FormLabel>
                       <FormControl>
-                        <Input {...field} />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-
-                <Button type="submit">Save Profile</Button>
-              </form>
-            </Form>
-          </CardContent>
-        </Card>
-
-        <Card className="glass-card border-emerald/20">
-          <CardHeader>
-            <CardTitle>Notifications</CardTitle>
-            <CardDescription>Configure how you receive notifications</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <Form {...notificationsForm}>
-              <form onSubmit={notificationsForm.handleSubmit(onNotificationsSubmit)} className="space-y-4">
-                <FormField
-                  control={notificationsForm.control}
-                  name="emailNotifications"
-                  render={({ field }) => (
-                    <FormItem className="flex flex-row items-center justify-between rounded-lg border p-4">
-                      <div className="space-y-0.5">
-                        <FormLabel className="text-base">Email Notifications</FormLabel>
-                        <FormDescription>Receive notifications via email</FormDescription>
-                      </div>
-                      <FormControl>
-                        <Switch checked={field.value} onCheckedChange={field.onChange} />
-                      </FormControl>
-                    </FormItem>
-                  )}
-                />
-
-                <FormField
-                  control={notificationsForm.control}
-                  name="pushNotifications"
-                  render={({ field }) => (
-                    <FormItem className="flex flex-row items-center justify-between rounded-lg border p-4">
-                      <div className="space-y-0.5">
-                        <FormLabel className="text-base">Push Notifications</FormLabel>
-                        <FormDescription>Receive push notifications on your device</FormDescription>
-                      </div>
-                      <FormControl>
-                        <Switch checked={field.value} onCheckedChange={field.onChange} />
-                      </FormControl>
-                    </FormItem>
-                  )}
-                />
-
-                <FormField
-                  control={notificationsForm.control}
-                  name="billReminders"
-                  render={({ field }) => (
-                    <FormItem className="flex flex-row items-center justify-between rounded-lg border p-4">
-                      <div className="space-y-0.5">
-                        <FormLabel className="text-base">Bill Reminders</FormLabel>
-                        <FormDescription>Get reminders about upcoming bills</FormDescription>
-                      </div>
-                      <FormControl>
-                        <Switch checked={field.value} onCheckedChange={field.onChange} />
-                      </FormControl>
-                    </FormItem>
-                  )}
-                />
-
-                <FormField
-                  control={notificationsForm.control}
-                  name="weeklyReports"
-                  render={({ field }) => (
-                    <FormItem className="flex flex-row items-center justify-between rounded-lg border p-4">
-                      <div className="space-y-0.5">
-                        <FormLabel className="text-base">Weekly Reports</FormLabel>
-                        <FormDescription>Receive weekly financial summary reports</FormDescription>
-                      </div>
-                      <FormControl>
-                        <Switch checked={field.value} onCheckedChange={field.onChange} />
-                      </FormControl>
-                    </FormItem>
-                  )}
-                />
-
-                <FormField
-                  control={notificationsForm.control}
-                  name="savingsUpdates"
-                  render={({ field }) => (
-                    <FormItem className="flex flex-row items-center justify-between rounded-lg border p-4">
-                      <div className="space-y-0.5">
-                        <FormLabel className="text-base">Savings Updates</FormLabel>
-                        <FormDescription>Get updates on your savings goals progress</FormDescription>
-                      </div>
-                      <FormControl>
-                        <Switch checked={field.value} onCheckedChange={field.onChange} />
-                      </FormControl>
-                    </FormItem>
-                  )}
-                />
-
-                <Button type="submit">Save Notification Settings</Button>
-              </form>
-            </Form>
-          </CardContent>
-        </Card>
-
-        <Card className="glass-card border-emerald/20">
-          <CardHeader>
-            <CardTitle>Appearance</CardTitle>
-            <CardDescription>Customize how the application looks</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <Form {...appearanceForm}>
-              <form onSubmit={appearanceForm.handleSubmit(onAppearanceSubmit)} className="space-y-4">
-                <FormField
-                  control={appearanceForm.control}
-                  name="theme"
-                  render={({ field }) => (
-                    <FormItem className="space-y-3">
-                      <FormLabel>Theme</FormLabel>
-                      <FormControl>
-                        <RadioGroup
-                          onValueChange={field.onChange}
-                          defaultValue={field.value}
-                          className="flex flex-col space-y-1"
-                        >
-                          <FormItem className="flex items-center space-x-3 space-y-0">
-                            <FormControl>
-                              <RadioGroupItem value="system" />
-                            </FormControl>
-                            <FormLabel className="font-normal">System</FormLabel>
-                          </FormItem>
-                          <FormItem className="flex items-center space-x-3 space-y-0">
-                            <FormControl>
-                              <RadioGroupItem value="light" />
-                            </FormControl>
-                            <FormLabel className="font-normal">Light</FormLabel>
-                          </FormItem>
-                          <FormItem className="flex items-center space-x-3 space-y-0">
-                            <FormControl>
-                              <RadioGroupItem value="dark" />
-                            </FormControl>
-                            <FormLabel className="font-normal">Dark</FormLabel>
-                          </FormItem>
-                        </RadioGroup>
+                        <Input {...field} type="email" />
                       </FormControl>
                       <FormMessage />
                     </FormItem>
@@ -282,34 +176,22 @@ export default function SettingsPage() {
                 />
 
                 <FormField
-                  control={appearanceForm.control}
-                  name="currency"
+                  control={profileForm.control}
+                  name="currentPassword"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Currency</FormLabel>
-                      <Select onValueChange={field.onChange} defaultValue={field.value}>
-                        <FormControl>
-                          <SelectTrigger>
-                            <SelectValue placeholder="Select currency" />
-                          </SelectTrigger>
-                        </FormControl>
-                        <SelectContent>
-                          <SelectItem value="USD">USD ($)</SelectItem>
-                          <SelectItem value="EUR">EUR (€)</SelectItem>
-                          <SelectItem value="GBP">GBP (£)</SelectItem>
-                          <SelectItem value="JPY">JPY (¥)</SelectItem>
-                          <SelectItem value="CAD">CAD (C$)</SelectItem>
-                        </SelectContent>
-                      </Select>
-                      <FormDescription>
-                        This will change how currency values are displayed throughout the app.
-                      </FormDescription>
+                      <FormLabel>Current Password</FormLabel>
+                      <FormControl>
+                        <Input {...field} type="password" />
+                      </FormControl>
                       <FormMessage />
                     </FormItem>
                   )}
                 />
 
-                <Button type="submit">Save Appearance Settings</Button>
+                <Button type="submit" disabled={isLoading}>
+                  {isLoading ? "Updating..." : "Update Profile"}
+                </Button>
               </form>
             </Form>
           </CardContent>
@@ -317,29 +199,88 @@ export default function SettingsPage() {
 
         <Card className="glass-card border-emerald/20">
           <CardHeader>
-            <CardTitle>Security</CardTitle>
-            <CardDescription>Manage your account security settings</CardDescription>
+            <CardTitle>Change Password</CardTitle>
+            <CardDescription>Update your password</CardDescription>
           </CardHeader>
           <CardContent>
-            <div className="space-y-4">
-              <div className="space-y-2">
-                <h3 className="text-lg font-medium">Change Password</h3>
-                <p className="text-sm text-muted-foreground">Update your password to keep your account secure</p>
-              </div>
-              <Button variant="outline">Change Password</Button>
+            <Form {...passwordForm}>
+              <form onSubmit={passwordForm.handleSubmit(onPasswordSubmit)} className="space-y-4">
+                <FormField
+                  control={passwordForm.control}
+                  name="currentPassword"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Current Password</FormLabel>
+                      <FormControl>
+                        <Input {...field} type="password" />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
 
-              <div className="space-y-2 pt-4 border-t">
-                <h3 className="text-lg font-medium">Two-Factor Authentication</h3>
-                <p className="text-sm text-muted-foreground">Add an extra layer of security to your account</p>
-              </div>
-              <Button variant="outline">Enable 2FA</Button>
+                <FormField
+                  control={passwordForm.control}
+                  name="newPassword"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>New Password</FormLabel>
+                      <FormControl>
+                        <Input {...field} type="password" />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
 
-              <div className="space-y-2 pt-4 border-t">
-                <h3 className="text-lg font-medium text-destructive">Danger Zone</h3>
-                <p className="text-sm text-muted-foreground">Permanently delete your account and all of your data</p>
-              </div>
-              <Button variant="destructive">Delete Account</Button>
-            </div>
+                <FormField
+                  control={passwordForm.control}
+                  name="confirmPassword"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Confirm New Password</FormLabel>
+                      <FormControl>
+                        <Input {...field} type="password" />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
+                <Button type="submit" disabled={isLoading}>
+                  {isLoading ? "Updating..." : "Change Password"}
+                </Button>
+              </form>
+            </Form>
+          </CardContent>
+        </Card>
+
+        <Card className="glass-card border-emerald/20">
+          <CardHeader>
+            <CardTitle>Danger Zone</CardTitle>
+            <CardDescription>Permanently delete your account and all of your data</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <AlertDialog>
+              <AlertDialogTrigger asChild>
+                <Button variant="destructive">Delete Account</Button>
+              </AlertDialogTrigger>
+              <AlertDialogContent>
+                <AlertDialogHeader>
+                  <AlertDialogTitle>Are you sure?</AlertDialogTitle>
+                  <AlertDialogDescription>
+                    This action cannot be undone. This will permanently delete your account
+                    and all associated data.
+                  </AlertDialogDescription>
+                </AlertDialogHeader>
+                <AlertDialogFooter>
+                  <AlertDialogCancel>Cancel</AlertDialogCancel>
+                  <AlertDialogAction onClick={handleDeleteAccount}>
+                    Delete Account
+                  </AlertDialogAction>
+                </AlertDialogFooter>
+              </AlertDialogContent>
+            </AlertDialog>
           </CardContent>
         </Card>
       </div>

@@ -6,10 +6,47 @@ const Bill = require('../models/Bill');
 // Get all bills
 router.get('/', async (req, res) => {
   try {
-    const bills = await Bill.find().populate('user', 'name email');
+    const { userId } = req.query;
+    let query = {};
+    
+    if (userId) {
+      query.user = userId;
+    }
+
+    const bills = await Bill.find(query).populate('user', 'name email');
     res.json(bills);
   } catch (err) {
     res.status(500).json({ message: err.message });
+  }
+});
+
+// Get upcoming bills
+router.get('/upcoming', async (req, res) => {
+  try {
+    const { userId, days = 7 } = req.query;
+    if (!userId) {
+      return res.status(400).json({ message: 'User ID is required' });
+    }
+
+    const today = new Date();
+    today.setHours(0, 0, 0, 0); // Set to start of day
+    
+    const futureDate = new Date();
+    futureDate.setDate(today.getDate() + parseInt(days));
+    futureDate.setHours(23, 59, 59, 999); // Set to end of day
+
+    const bills = await Bill.find({
+      user: userId,
+      dueDate: {
+        $gte: today,
+        $lte: futureDate
+      }
+    }).sort({ dueDate: 1 });
+
+    res.json({ bills });
+  } catch (err) {
+    console.error('Error fetching upcoming bills:', err);
+    res.status(500).json({ message: 'Failed to fetch upcoming bills' });
   }
 });
 
