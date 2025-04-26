@@ -49,7 +49,8 @@ router.put('/profile', auth, async (req, res) => {
       if (!isMatch) {
         return res.status(400).json({ message: 'Current password is incorrect' });
       }
-      user.password = await bcrypt.hash(newPassword, 10);
+      // Set the new password directly to trigger the pre-save middleware
+      user.password = newPassword;
     }
 
     await user.save();

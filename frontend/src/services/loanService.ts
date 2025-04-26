@@ -1,92 +1,120 @@
 import type { LoanApplication } from "../types"
 
-// Generate dummy loan applications
-const generateDummyLoanApplications = (userId: string): LoanApplication[] => {
-  return [
-    {
-      id: "loan-1",
-      userId,
-      amount: 5000,
-      status: "approved",
-      tax: 250,
-      createdAt: new Date(new Date().setDate(new Date().getDate() - 30)),
-    },
-    {
-      id: "loan-2",
-      userId,
-      amount: 10000,
-      status: "pending",
-      tax: 500,
-      createdAt: new Date(new Date().setDate(new Date().getDate() - 5)),
-    },
-    {
-      id: "loan-3",
-      userId,
-      amount: 2000,
-      status: "rejected",
-      tax: 100,
-      createdAt: new Date(new Date().setDate(new Date().getDate() - 60)),
-    },
-  ]
-}
-
-// Dummy loan applications store
-const dummyLoanApplications: Record<string, LoanApplication[]> = {}
 
 // Get loan applications for a user
 export const getLoanApplications = async (userId: string): Promise<LoanApplication[]> => {
-  return new Promise((resolve) => {
-    setTimeout(() => {
-      if (!dummyLoanApplications[userId]) {
-        dummyLoanApplications[userId] = generateDummyLoanApplications(userId)
-      }
+  const token = localStorage.getItem('token');
+  if (!token) {
+    throw new Error('No authentication token found');
+  }
 
-      // Sort by created date (newest first)
-      const sortedApplications = [...dummyLoanApplications[userId]].sort(
-        (a, b) => b.createdAt.getTime() - a.createdAt.getTime(),
-      )
+  try {
+    const response = await fetch(`/api/loan-applications`, {
+      headers: {
+        'Authorization': `Bearer ${token}`,
+      },
+    });
 
-      resolve(sortedApplications)
-    }, 500)
-  })
+    if (!response.ok) {
+      const errorData = await response.json();
+      console.error('Loan applications fetch error:', errorData);
+      throw new Error(errorData.message || 'Failed to fetch loan applications');
+    }
+
+    const data = await response.json();
+    console.log('Loan applications response:', data);
+    return data;
+  } catch (error) {
+    console.error('Error in getLoanApplications:', error);
+    throw error;
+  }
 }
-
 // Apply for a new loan
-export const applyForLoan = async (userId: string, amount: number): Promise<LoanApplication> => {
-  return new Promise((resolve) => {
-    setTimeout(() => {
-      const tax = amount * 0.05 // 5% tax
+export const applyForLoan = async (userId: string, amount: number, purpose: string): Promise<LoanApplication> => {
+  const token = localStorage.getItem('token');
+  if (!token) {
+    throw new Error('No authentication token found');
+  }
 
-      const newLoan: LoanApplication = {
-        id: `loan-${Date.now()}`,
-        userId,
-        amount,
-        status: "pending",
-        tax,
-        createdAt: new Date(),
-      }
+  const tax = amount * 0.05; // 5% tax
 
-      if (!dummyLoanApplications[userId]) {
-        dummyLoanApplications[userId] = []
-      }
+  const response = await fetch(`/api/loan-applications`, {
+    method: 'POST',
+    headers: {
+      'Authorization': `Bearer ${token}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({ user: userId, amount, tax, purpose }),
+  });
 
-      dummyLoanApplications[userId].unshift(newLoan)
-      resolve(newLoan)
-    }, 500)
-  })
+  if (!response.ok) {
+    throw new Error('Failed to apply for loan');
+  }
+
+  const data = await response.json();
+  return data.loan;
 }
 
 // Get pending loans count
 export const getPendingLoansCount = async (userId: string): Promise<number> => {
-  return new Promise((resolve) => {
-    setTimeout(() => {
-      if (!dummyLoanApplications[userId]) {
-        dummyLoanApplications[userId] = generateDummyLoanApplications(userId)
-      }
+  const token = localStorage.getItem('token');
+  if (!token) {
+    throw new Error('No authentication token found');
+  }
 
-      const pendingCount = dummyLoanApplications[userId].filter((loan) => loan.status === "pending").length
+  const response = await fetch(`/api/loans/pending/${userId}`, {
+    headers: {
+      'Authorization': `Bearer ${token}`,
+    },
+  });
 
-      resolve(pendingCount)
-    }, 500)
-  })
+  if (!response.ok) {
+    throw new Error('Failed to fetch pending loans count');
+  }
+
+  const data = await response.json();
+  return data.pendingLoansCount;
+}
+
+// Delete loan application
+export const deleteLoan = async (loanId: string): Promise<void> => {
+  const token = localStorage.getItem('token');
+  if (!token) {
+    throw new Error('No authentication token found');
+  }
+
+  const response = await fetch(`/api/loan-applications/${loanId}`, {
+    method: 'DELETE',
+    headers: {
+      'Authorization': `Bearer ${token}`,
+    },
+  });
+
+  if (!response.ok) {
+    throw new Error('Failed to delete loan application');
+  }
+}
+
+// Update loan application
+export const updateLoan = async (loanId: string, updates: { amount?: number; purpose?: string }): Promise<LoanApplication> => {
+  const token = localStorage.getItem('token');
+  if (!token) {
+    throw new Error('No authentication token found');
+  }
+
+  const response = await fetch(`/api/loan-applications/${loanId}`, {
+    method: 'PUT',
+    headers: {
+      'Authorization': `Bearer ${token}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify(updates),
+  });
+
+  if (!response.ok) {
+    throw new Error('Failed to update loan application');
+  }
+
+  const data = await response.json();
+  return data.loan;
 }

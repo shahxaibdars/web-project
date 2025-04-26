@@ -108,7 +108,11 @@ export default function SettingsPage() {
         currentPassword: data.currentPassword,
         newPassword: data.newPassword,
       })
-      passwordForm.reset()
+      passwordForm.reset({
+        currentPassword: "",
+        newPassword: "",
+        confirmPassword: "",
+      })
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to update password")
     } finally {
@@ -205,6 +209,10 @@ export default function SettingsPage() {
           <CardContent>
             <Form {...passwordForm}>
               <form onSubmit={passwordForm.handleSubmit(onPasswordSubmit)} className="space-y-4">
+                {error && (
+                  <div className="text-sm text-destructive">{error}</div>
+                )}
+                
                 <FormField
                   control={passwordForm.control}
                   name="currentPassword"

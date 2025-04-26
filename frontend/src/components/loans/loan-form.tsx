@@ -25,6 +25,7 @@ import { formatCurrency } from "@/lib/utils"
 
 const formSchema = z.object({
   amount: z.coerce.number().positive({ message: "Amount must be positive" }),
+  purpose: z.string().min(1, { message: "Purpose is required" }),
 })
 
 type FormValues = z.infer<typeof formSchema>
@@ -40,7 +41,8 @@ export function LoanForm({ onSuccess }: LoanFormProps) {
   const form = useForm<FormValues>({
     resolver: zodResolver(formSchema),
     defaultValues: {
-      amount: undefined,
+      amount: 0,
+      purpose: "",
     },
   })
 
@@ -57,8 +59,7 @@ export function LoanForm({ onSuccess }: LoanFormProps) {
     if (!user) return
 
     try {
-      await applyForLoan(user.id, values.amount)
-
+      await applyForLoan(user._id, values.amount, values.purpose)
       form.reset()
       setOpen(false)
       onSuccess()
@@ -105,6 +106,23 @@ export function LoanForm({ onSuccess }: LoanFormProps) {
               )}
             />
 
+            <FormField
+              control={form.control}
+              name="purpose"
+              render={({ field }: any) => (
+                <FormItem>
+                  <FormLabel>Loan Purpose</FormLabel>
+                  <FormControl>
+                    <Input
+                      placeholder="Enter loan purpose"
+                      {...field}
+                    />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+
             <div className="rounded-md border p-4 space-y-2">
               <h4 className="text-sm font-medium">Loan Summary</h4>
               <div className="flex justify-between text-sm">
@@ -117,7 +135,7 @@ export function LoanForm({ onSuccess }: LoanFormProps) {
               </div>
               <div className="flex justify-between text-sm font-medium pt-2 border-t">
                 <span>Total Repayable:</span>
-                <span>{formatCurrency((form.watch("amount") || 0) + calculatedTax)}</span>
+                <span>{formatCurrency(Number(form.watch("amount") || 0) + Number(calculatedTax))}</span>
               </div>
             </div>
 

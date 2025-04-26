@@ -52,12 +52,13 @@ export interface SavingsGoal {
 }
 
 export interface LoanApplication {
-  id: string
+  _id: string
   userId: string
   amount: number
   status: "pending" | "approved" | "rejected"
   tax: number
   createdAt: Date
+  purpose: string
 }
 
 export interface AuthState {

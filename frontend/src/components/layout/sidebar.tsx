@@ -10,6 +10,7 @@ import {
   PieChart,
   Receipt,
   PiggyBank,
+  Banknote,
   Settings,
   Menu,
   X,
@@ -41,6 +42,7 @@ export function Sidebar({ onLogout }: SidebarProps) {
     { href: "/budget", label: "Budget", icon: PieChart },
     { href: "/bills", label: "Bills", icon: Receipt },
     { href: "/savings", label: "Savings", icon: PiggyBank },
+    { href: "/loans", label: "Loans", icon: Banknote },
     { href: "/settings", label: "Settings", icon: Settings },
   ]
 
