@@ -29,7 +29,7 @@ import { addTransaction, updateTransaction } from "@/services/transactionService
 import { getCurrentUser } from "@/services/authService"
 
 const formSchema = z.object({
-  type: z.enum(["income", "expense", "transfer"]),
+  type: z.enum(["income", "expense"]),
   category: z.string().min(1, { message: "Please select a category" }),
   amount: z.coerce.number().positive({ message: "Amount must be positive" }),
   date: z.date(),
@@ -126,14 +126,12 @@ export function TransactionForm({ onSuccess, initialData }: TransactionFormProps
                     <SelectContent>
                       <SelectItem value="income">Income</SelectItem>
                       <SelectItem value="expense">Expense</SelectItem>
-                      <SelectItem value="transfer">Transfer</SelectItem>
                     </SelectContent>
                   </Select>
                   <FormMessage />
                 </FormItem>
               )}
             />
-
             <FormField
               control={form.control}
               name="category"
@@ -158,7 +156,6 @@ export function TransactionForm({ onSuccess, initialData }: TransactionFormProps
                 </FormItem>
               )}
             />
-
             <FormField
               control={form.control}
               name="amount"
@@ -166,19 +163,12 @@ export function TransactionForm({ onSuccess, initialData }: TransactionFormProps
                 <FormItem>
                   <FormLabel>Amount</FormLabel>
                   <FormControl>
-                    <Input 
-                      type="number" 
-                      placeholder="0.00" 
-                      {...field} 
-                      step="0.01"
-                      onChange={(e) => field.onChange(Number(e.target.value))}
-                    />
+                    <Input type="number" step="0.01" {...field} />
                   </FormControl>
                   <FormMessage />
                 </FormItem>
               )}
             />
-
             <FormField
               control={form.control}
               name="date"
@@ -188,21 +178,35 @@ export function TransactionForm({ onSuccess, initialData }: TransactionFormProps
                   <Popover>
                     <PopoverTrigger asChild>
                       <FormControl>
-                        <Button variant={"outline"} className="w-full pl-3 text-left font-normal">
-                          {field.value ? format(field.value, "PPP") : <span>Pick a date</span>}
+                        <Button
+                          variant={"outline"}
+                          className={!field.value ? "text-muted-foreground" : ""}
+                        >
+                          {field.value ? (
+                            format(field.value, "PPP")
+                          ) : (
+                            <span>Pick a date</span>
+                          )}
                           <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
                         </Button>
                       </FormControl>
                     </PopoverTrigger>
                     <PopoverContent className="w-auto p-0" align="start">
-                      <Calendar mode="single" selected={field.value} onSelect={field.onChange} initialFocus />
+                      <Calendar
+                        mode="single"
+                        selected={field.value}
+                        onSelect={field.onChange}
+                        disabled={(date) =>
+                          date > new Date() || date < new Date("1900-01-01")
+                        }
+                        initialFocus
+                      />
                     </PopoverContent>
                   </Popover>
                   <FormMessage />
                 </FormItem>
               )}
             />
-
             <FormField
               control={form.control}
               name="description"
@@ -210,15 +214,16 @@ export function TransactionForm({ onSuccess, initialData }: TransactionFormProps
                 <FormItem>
                   <FormLabel>Description</FormLabel>
                   <FormControl>
-                    <Textarea placeholder="Enter a description (optional)" {...field} />
+                    <Textarea placeholder="Add a description (optional)" {...field} />
                   </FormControl>
                   <FormMessage />
                 </FormItem>
               )}
             />
-
             <DialogFooter>
-              <Button type="submit">Save Transaction</Button>
+              <Button type="submit">
+                {initialData ? "Update" : "Add"} Transaction
+              </Button>
             </DialogFooter>
           </form>
         </Form>

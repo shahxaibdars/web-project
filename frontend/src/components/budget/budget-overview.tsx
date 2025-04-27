@@ -9,6 +9,7 @@ import { getCurrentUser } from "@/services/authService"
 import { Button } from "@/components/ui/button"
 import { Progress } from "@/components/ui/progress"
 import { BudgetForm } from "./budget-form"
+import { PieChart, Pie, Cell, ResponsiveContainer, Legend, Tooltip } from "recharts"
 
 export function BudgetOverview() {
   const [budget, setBudget] = useState<Budget | null>(null)
@@ -65,93 +66,86 @@ export function BudgetOverview() {
     }
   }
 
-  const getProgressColor = (category: BudgetCategory) => {
-    const percentage = calculatePercentage(category.spent, category.limit)
+  const getExpenseBreakdown = () => {
+    if (!budget) return [];
 
-    if (percentage >= 100) {
-      return "bg-destructive"
-    } else if (percentage >= 80) {
-      return "bg-amber-500"
-    } else {
-      return "bg-emerald"
+    // Filter expense categories and sort by spent amount
+    const expenseCategories = budget.categories
+      .filter(cat => cat.spent > 0)
+      .sort((a, b) => b.spent - a.spent);
+
+    // Get top 4 expenses
+    const topExpenses = expenseCategories.slice(0, 4);
+    
+    // Calculate total spent
+    const totalSpent = expenseCategories.reduce((sum, cat) => sum + cat.spent, 0);
+    
+    // Calculate other expenses
+    const otherExpenses = expenseCategories.slice(4).reduce((sum, cat) => sum + cat.spent, 0);
+    
+    // Prepare data for pie chart
+    const data = topExpenses.map(cat => ({
+      name: cat.category,
+      value: cat.spent,
+      percentage: ((cat.spent / totalSpent) * 100).toFixed(1)
+    }));
+
+    // Add "Other" category if there are remaining expenses
+    if (otherExpenses > 0) {
+      data.push({
+        name: "Other",
+        value: otherExpenses,
+        percentage: ((otherExpenses / totalSpent) * 100).toFixed(1)
+      });
     }
-  }
 
-  if (isLoading) {
-    return (
-      <div className="glass-card rounded-xl p-6 h-[400px] flex items-center justify-center">
-        <div className="animate-pulse text-muted-foreground">Loading budget data...</div>
-      </div>
-    )
-  }
+    return data;
+  };
+
+  const COLORS = ['#0088FE', '#00C49F', '#FFBB28', '#FF8042', '#8884D8'];
 
   return (
-    <div className="glass-card rounded-xl p-6">
-      <div className="flex items-center justify-between mb-6">
-        <h2 className="text-xl font-bold">Budget Overview</h2>
-        <div className="flex items-center gap-2">
+    <div className="space-y-6">
+      <div className="flex items-center justify-between">
+        <h2 className="text-xl font-semibold">
+          {getMonthName(currentMonth)} {currentYear}
+        </h2>
+        <div className="flex gap-2">
           <Button variant="outline" size="icon" onClick={handlePreviousMonth}>
             <ChevronLeft className="h-4 w-4" />
           </Button>
-          <span className="text-sm font-medium min-w-[120px] text-center">
-            {getMonthName(currentMonth)} {currentYear}
-          </span>
           <Button variant="outline" size="icon" onClick={handleNextMonth}>
             <ChevronRight className="h-4 w-4" />
           </Button>
         </div>
       </div>
 
-      <div className="space-y-6">
-        {budget && budget.categories.length > 0 ? (
-          budget.categories.map((category) => (
-            <div key={category.category} className="space-y-2">
-              <div className="flex justify-between items-center">
-                <div className="flex items-center gap-2">
-                  <h3 className="text-sm font-medium">{category.category}</h3>
-                </div>
-                <div className="flex items-center gap-2">
-                  <span className={`text-sm font-medium ${getBudgetStatus(category)}`}>
+      {isLoading ? (
+        <div>Loading...</div>
+      ) : budget ? (
+        <div className="space-y-8">
+          {/* Budget Categories */}
+          <div className="space-y-4">
+            <h3 className="text-lg font-medium">Budget Categories</h3>
+            {budget.categories.map((category) => (
+              <div key={category.category} className="space-y-2">
+                <div className="flex justify-between">
+                  <span className="font-medium">{category.category}</span>
+                  <span className={getBudgetStatus(category)}>
                     {formatCurrency(category.spent)} / {formatCurrency(category.limit)}
                   </span>
-                  <BudgetForm
-                    month={currentMonth}
-                    year={currentYear}
-                    existingCategory={category}
-                    onSuccess={fetchBudget}
-                    hasTransactions={budget.categories.some(cat => cat.spent > 0)}
-                  />
                 </div>
+                <Progress
+                  value={calculatePercentage(category.spent, category.limit)}
+                  className="h-2"
+                />
               </div>
-              <Progress
-                value={calculatePercentage(category.spent, category.limit)}
-                className="h-2"
-                indicatorClassName={getProgressColor(category)}
-              />
-              <div className="flex justify-between items-center text-xs">
-                <span className={getBudgetStatus(category)}>
-                  {calculatePercentage(category.spent, category.limit).toFixed(0)}%
-                </span>
-                <span className="text-muted-foreground">
-                  {category.spent > category.limit
-                    ? `${formatCurrency(category.spent - category.limit)} over budget`
-                    : `${formatCurrency(category.limit - category.spent)} remaining`}
-                </span>
-              </div>
-            </div>
-          ))
-        ) : (
-          <div className="text-center py-8">
-            <p className="text-muted-foreground mb-4">No budget categories set for this month</p>
-            <BudgetForm
-              month={currentMonth}
-              year={currentYear}
-              onSuccess={fetchBudget}
-              hasTransactions={false}
-            />
+            ))}
           </div>
-        )}
-      </div>
+        </div>
+      ) : (
+        <div>No budget data available</div>
+      )}
     </div>
   )
 }

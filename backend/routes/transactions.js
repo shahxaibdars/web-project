@@ -70,26 +70,42 @@ router.get('/:id', auth, async (req, res) => {
 // Helper function to update budget
 async function updateBudget(transaction, isDelete = false) {
   const transactionDate = new Date(transaction.date);
-  const budget = await Budget.findOne({
+  let budget = await Budget.findOne({
     user: transaction.user,
     month: transactionDate.getMonth(),
     year: transactionDate.getFullYear()
   });
 
-  if (budget) {
-    const categoryIndex = budget.categories.findIndex(c => c.category === transaction.category);
-    
-    if (categoryIndex !== -1) {
-      if (transaction.type === 'expense') {
-        // For expenses, decrease budget when adding, increase when deleting
-        budget.categories[categoryIndex].spent += isDelete ? -transaction.amount : transaction.amount;
-      } else if (transaction.type === 'income') {
-        // For income, increase budget when adding, decrease when deleting
-        budget.categories[categoryIndex].limit += isDelete ? -transaction.amount : transaction.amount;
-      }
-      await budget.save();
+  if (!budget) {
+    // Create new budget if none exists
+    budget = new Budget({
+      user: transaction.user,
+      month: transactionDate.getMonth(),
+      year: transactionDate.getFullYear(),
+      categories: []
+    });
+  }
+
+  const categoryIndex = budget.categories.findIndex(c => c.category === transaction.category);
+  
+  if (categoryIndex === -1) {
+    // Add new category if it doesn't exist
+    budget.categories.push({
+      category: transaction.category,
+      limit: transaction.type === 'income' ? transaction.amount : 0,
+      spent: transaction.type === 'expense' ? transaction.amount : 0
+    });
+  } else {
+    if (transaction.type === 'expense') {
+      // For expenses, update spent amount
+      budget.categories[categoryIndex].spent += isDelete ? -transaction.amount : transaction.amount;
+    } else if (transaction.type === 'income') {
+      // For income, extend the budget limit
+      budget.categories[categoryIndex].limit += isDelete ? -transaction.amount : transaction.amount;
     }
   }
+  
+  await budget.save();
 }
 
 // Create a new transaction

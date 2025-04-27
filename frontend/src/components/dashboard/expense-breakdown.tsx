@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react"
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip } from "recharts"
-import { getTransactionStats } from "@/services/transactionService"
+import { getBudget } from "@/services/budgetService"
 import { getCurrentUser } from "@/services/authService"
 import { categoryColors } from "@/services/transactionService"
 import { formatCurrency } from "@/lib/utils"
@@ -11,6 +11,7 @@ interface ExpenseData {
   name: string
   value: number
   color: string
+  percentage: string
 }
 
 export function ExpenseBreakdown() {
@@ -22,20 +23,55 @@ export function ExpenseBreakdown() {
       const user = getCurrentUser()
       if (user) {
         try {
-          const stats = await getTransactionStats(user._id)
-          // Convert category summary to chart data
-          const chartData = Object.entries(stats.categorySummary)
-            .map(([category, amount]) => ({
-              name: category,
-              value: amount,
-              color: categoryColors[category] || "#64748B",
-            }))
-            .sort((a, b) => b.value - a.value)
-            .slice(0, 5) // Top 5 categories
+          const currentDate = new Date()
+          const budget = await getBudget(user._id, currentDate.getMonth(), currentDate.getFullYear())
+          
+          if (!budget || !budget.categories || budget.categories.length === 0) {
+            setData([])
+            return
+          }
+
+          // Filter categories with spent amount and sort by spent
+          const categories = budget.categories
+            .filter(cat => cat.spent > 0)
+            .sort((a, b) => b.spent - a.spent)
+
+          if (categories.length === 0) {
+            setData([])
+            return
+          }
+
+          // Get top 4 categories
+          const topCategories = categories.slice(0, 4)
+          
+          // Calculate total spent
+          const totalSpent = categories.reduce((sum, cat) => sum + cat.spent, 0)
+          
+          // Calculate other expenses
+          const otherExpenses = categories.slice(4).reduce((sum, cat) => sum + cat.spent, 0)
+          
+          // Prepare data for pie chart
+          const chartData = topCategories.map(cat => ({
+            name: cat.category,
+            value: cat.spent,
+            color: categoryColors[cat.category] || "#64748B",
+            percentage: ((cat.spent / totalSpent) * 100).toFixed(1)
+          }))
+
+          // Add "Other" category if there are remaining expenses
+          if (otherExpenses > 0) {
+            chartData.push({
+              name: "Other",
+              value: otherExpenses,
+              color: "#64748B",
+              percentage: ((otherExpenses / totalSpent) * 100).toFixed(1)
+            })
+          }
 
           setData(chartData)
         } catch (error) {
-          console.error("Error fetching expense data:", error)
+          console.error("Error fetching budget data:", error)
+          setData([])
         } finally {
           setIsLoading(false)
         }
@@ -45,18 +81,6 @@ export function ExpenseBreakdown() {
     fetchData()
   }, [])
 
-  const CustomTooltip = ({ active, payload }: any) => {
-    if (active && payload && payload.length) {
-      return (
-        <div className="bg-charcoal p-2 rounded-md border border-emerald/20 text-xs">
-          <p className="font-medium">{payload[0].name}</p>
-          <p className="text-emerald">{formatCurrency(payload[0].value)}</p>
-        </div>
-      )
-    }
-    return null
-  }
-
   if (isLoading) {
     return (
       <div className="glass-card rounded-xl p-6 h-[300px] flex items-center justify-center">
@@ -65,37 +89,53 @@ export function ExpenseBreakdown() {
     )
   }
 
+  if (data.length === 0) {
+    return (
+      <div className="glass-card rounded-xl p-6 h-[300px] flex items-center justify-center">
+        <div className="text-muted-foreground">No expense data available</div>
+      </div>
+    )
+  }
+
   return (
     <div className="glass-card rounded-xl p-6">
       <h3 className="text-lg font-medium mb-4">Expense Breakdown</h3>
-      {data.length > 0 ? (
-        <div className="h-[250px]">
-          <ResponsiveContainer width="100%" height="100%">
-            <PieChart>
-              <Pie
-                data={data}
-                cx="50%"
-                cy="50%"
-                innerRadius={60}
-                outerRadius={80}
-                paddingAngle={2}
-                dataKey="value"
-                label={({ name, percent }: any) => `${name} (${(percent * 100).toFixed(0)}%)`}
-                labelLine={false}
-              >
-                {data.map((entry, index) => (
-                  <Cell key={`cell-${index}`} fill={entry.color} />
-                ))}
-              </Pie>
-              <Tooltip content={<CustomTooltip />} />
-            </PieChart>
-          </ResponsiveContainer>
-        </div>
-      ) : (
-        <div className="h-[250px] flex items-center justify-center text-muted-foreground">
-          No expense data available
-        </div>
-      )}
+      <div className="h-[250px]">
+        <ResponsiveContainer width="100%" height="100%">
+          <PieChart>
+            <Pie
+              data={data}
+              cx="50%"
+              cy="50%"
+              innerRadius={60}
+              outerRadius={80}
+              paddingAngle={2}
+              dataKey="value"
+              label={false}
+              labelLine={false}
+            >
+              {data.map((entry, index) => (
+                <Cell key={`cell-${index}`} fill={entry.color} />
+              ))}
+            </Pie>
+            <Tooltip 
+              content={({ active, payload }) => {
+                if (active && payload && payload.length) {
+                  const data = payload[0].payload as ExpenseData
+                  return (
+                    <div className="bg-charcoal p-2 rounded-md border border-emerald/20 text-xs">
+                      <p className="font-medium">{data.name}</p>
+                      <p className="text-emerald">{formatCurrency(data.value)}</p>
+                      <p className="text-muted-foreground">{data.percentage}% of total</p>
+                    </div>
+                  )
+                }
+                return null
+              }}
+            />
+          </PieChart>
+        </ResponsiveContainer>
+      </div>
     </div>
   )
 }
