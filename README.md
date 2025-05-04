@@ -1,101 +1,133 @@
-# FinWise
+# Financial Management System
 
-## Project Overview
-FinWise is a comprehensive personal finance management web application designed to simplify financial operations and provide actionable insights. Developed as part of the **Web Development Project** course, FinWise addresses common challenges faced by users, banks, and financial service providers such as scattered financial data, manual processes, and lack of financial insights.
-
-## Features
-- **User Authentication**: Secure login and registration system
-- **Transaction Management**: Track and categorize financial transactions
-- **Budget Planning**: Create and monitor budgets for different categories
-- **Savings Goals**: Set and track progress towards financial goals
-- **Bill Management**: Organize and track recurring bills
-- **Loan Applications**: Streamlined loan application process
-- **Financial Reports**: Generate comprehensive financial reports and insights
-- **Dashboard**: Overview of financial health and key metrics
+A comprehensive financial management system built with Next.js, featuring loan distribution, savings tracking, bill management, and transaction history.
 
 ## Tech Stack
-### Frontend
-- **Framework**: Next.js with TypeScript
+
+- **Framework**: Next.js 15.3.0 (App Router)
+- **Language**: TypeScript
 - **Styling**: Tailwind CSS
-- **State Management**: React Context API
-- **Routing**: Next.js App Router
-- **UI Components**: Custom components with modern design
-
-### Backend
-- **Runtime**: Node.js
-- **Framework**: Express.js
+- **UI Components**: Radix UI
+- **Authentication**: NextAuth.js
 - **Database**: MongoDB with Mongoose
-- **Authentication**: JWT-based authentication
-- **API**: RESTful API architecture
-
-## Requirements
-To run this project, ensure you have the following installed:
-1. **Node.js** (v14 or higher)
-2. **MongoDB** (v4.4 or higher)
-3. **npm** (v6 or higher)
+- **Form Handling**: React Hook Form with Zod
+- **State Management**: React Context
+- **Charts**: Recharts
 
 ## Project Structure
+
 ```
-├── frontend/              # Next.js frontend application
-│   ├── src/
-│   │   ├── app/          # Next.js app router pages
-│   │   │   ├── components/   # Reusable UI components
-│   │   │   ├── services/     # API service layer
-│   │   │   ├── types/        # TypeScript type definitions
-│   │   │   └── lib/          # Utility functions
-│   │   └── public/           # Static assets
-│   └── backend/              # Express.js backend application
-│       ├── models/          # MongoDB models
-│       ├── routes/          # API routes
-│       ├── middleware/      # Express middleware
-│       └── app.js           # Main application file
-```
-
-## How to Run
-Follow these steps to set up and run the project:
-
-1. **Backend Setup**:
-   ```sh
-   cd backend
-   npm install
-   node app.js
-   ```
-   The backend server will run on `http://localhost:5001`
-
-2. **Frontend Setup**:
-   ```sh
-   cd frontend
-   npm install
-   npm run dev
-   ```
-   The frontend application will run on `http://localhost:3000`
-
-## Environment Variables
-Create a `.env` file in the backend directory with the following variables:
-```
-MONGODB_URI=mongodb://localhost:27017/finwise
-PORT=5001
-JWT_SECRET=your_jwt_secret
-FRONTEND_URL=http://localhost:3000
+src/
+├── app/                    # Application routes and pages
+│   ├── api/               # API endpoints
+│   │   ├── auth/         # Authentication endpoints
+│   │   ├── dashboard/    # Dashboard data endpoints
+│   │   ├── loans/        # Loan-related endpoints
+│   │   ├── savings/      # Savings-related endpoints
+│   │   ├── bills/        # Bill-related endpoints
+│   │   └── transactions/ # Transaction-related endpoints
+│   ├── dashboard/         # Protected dashboard routes
+│   └── unauthorized/      # Unauthorized access pages
+├── components/            # Reusable UI components
+│   ├── ui/               # Base UI components
+│   ├── auth/             # Authentication components
+│   ├── admin/            # Admin-specific components
+│   ├── loan-distributor/ # Loan distribution components
+│   ├── bills/            # Bill management components
+│   ├── dashboard/        # Dashboard components
+│   ├── layout/           # Layout components
+│   ├── loans/            # Loan-related components
+│   ├── savings/          # Savings-related components
+│   └── transactions/     # Transaction components
+├── contexts/             # React context providers
+├── lib/                  # Utility functions
+├── models/               # Database models
+├── services/            # Business logic and API services
+└── types/               # TypeScript type definitions
 ```
 
-## API Documentation
-The backend provides the following API endpoints:
-- `/api/auth` - Authentication endpoints
-- `/api/users` - User management
-- `/api/transactions` - Financial transactions
-- `/api/budgets` - Budget management
-- `/api/savings` - Savings goals
-- `/api/bills` - Bill management
-- `/api/loan-applications` - Loan applications
-- `/api/reports` - Financial reports
+## Features
+
+- **User Authentication**
+  - Secure login and registration
+  - Role-based access control
+  - JWT-based authentication
+
+- **Loan Management**
+  - Loan application and approval
+  - Loan distribution system
+  - Loan tracking and history
+
+- **Savings Management**
+  - Savings account creation
+  - Deposit and withdrawal tracking
+  - Interest calculation
+
+- **Bill Management**
+  - Bill creation and tracking
+  - Payment scheduling
+  - Bill history
+
+- **Transaction Management**
+  - Transaction recording
+  - Transaction history
+  - Transaction categorization
+
+- **Dashboard**
+  - Financial overview
+  - Quick access to features
+  - Data visualization
+
+## Getting Started
+
+1. Clone the repository
+```bash
+git clone <repository-url>
+```
+
+2. Install dependencies
+```bash
+npm install
+# or
+yarn install
+# or
+pnpm install
+```
+
+3. Set up environment variables
+Create a `.env.local` file with the following variables:
+```env
+MONGODB_URI=your_mongodb_connection_string
+NEXTAUTH_SECRET=your_nextauth_secret
+NEXTAUTH_URL=http://localhost:3000
+```
+
+4. Run the development server
+```bash
+npm run dev
+# or
+yarn dev
+# or
+pnpm dev
+```
+
+5. Open [http://localhost:3000](http://localhost:3000) in your browser
+
+## Development
+
+- The project uses Turbopack for faster development builds
+- ESLint is configured for code quality
+- TypeScript for type safety
+- Tailwind CSS for styling
 
 ## Contributing
+
 1. Fork the repository
-2. Create your feature branch (`git checkout -b feature/AmazingFeature`)
-3. Commit your changes (`git commit -m 'Add some AmazingFeature'`)
-4. Push to the branch (`git push origin feature/AmazingFeature`)
+2. Create your feature branch (`git checkout -b feature/amazing-feature`)
+3. Commit your changes (`git commit -m 'Add some amazing feature'`)
+4. Push to the branch (`git push origin feature/amazing-feature`)
 5. Open a Pull Request
 
 ## License
+
 This project is licensed under the MIT License - see the LICENSE file for details.
