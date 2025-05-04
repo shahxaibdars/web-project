@@ -47,6 +47,8 @@ export const getLoanApplications = async (): Promise<LoanApplication[]> => {
   }
 }
 
+
+
 // Get a specific loan application
 export const getLoanApplication = async (id: string): Promise<LoanApplication | null> => {
   try {
@@ -117,6 +119,7 @@ export const calculateTax = async (amount: number): Promise<{
     }, 500)
   })
 }
+
 
 export const deleteLoanApplication = async (id: string): Promise<void> => {
   try {
